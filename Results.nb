@@ -1,0 +1,91 @@
+(* Content-type: application/vnd.wolfram.mathematica *)
+
+(*** Wolfram Notebook File ***)
+(* http://www.wolfram.com/nb *)
+
+(* CreatedBy='Mathematica 12.1' *)
+
+(*CacheID: 234*)
+(* Internal cache information:
+NotebookFileLineBreakTest
+NotebookFileLineBreakTest
+NotebookDataPosition[       158,          7]
+NotebookDataLength[      2663,         83]
+NotebookOptionsPosition[      2214,         67]
+NotebookOutlinePosition[      2710,         85]
+CellTagsIndexPosition[      2667,         82]
+WindowFrame->Normal*)
+
+(* Beginning of Notebook Content *)
+Notebook[{
+Cell[BoxData[
+ RowBox[{
+  RowBox[{"(*", 
+   RowBox[{"HOW", " ", "TO", " ", "USE", " ", "THIS"}], "*)"}], 
+  RowBox[{"(*", 
+   RowBox[{
+   "This", " ", "notebook", " ", "opens", " ", "the", " ", "saved", " ", 
+    "results", " ", "for", " ", 
+    RowBox[{"\[Omega]", "[", 
+     RowBox[{"2", "n"}], "]"}], " ", "from", " ", "the", " ", "folder", " ", 
+    RowBox[{"exports", "."}]}], "*)"}], 
+  RowBox[{"(*", 
+   RowBox[{"Evaluate", " ", "this", " ", "cell", " ", "to", " ", 
+    RowBox[{"start", "."}]}], "*)"}], "\[IndentingNewLine]", 
+  RowBox[{
+   RowBox[{
+    RowBox[{"ClearSystemCache", "[", "]"}], ";"}], "\n", 
+   RowBox[{
+    RowBox[{"$HistoryLength", "=", "1"}], ";"}], "\n", 
+   RowBox[{
+    RowBox[{"SetDirectory", "[", 
+     RowBox[{"NotebookDirectory", "[", "]"}], "]"}], ";"}], "\n", 
+   RowBox[{
+    RowBox[{"SetDirectory", "[", "\"\<exports\>\"", "]"}], ";"}], "\n", 
+   RowBox[{
+    RowBox[{"<<", "om.mx"}], ";", 
+    RowBox[{"<<", "ini.mx"}], ";"}], "\n", 
+   RowBox[{
+    RowBox[{
+     RowBox[{"om", "[", "order_", "]"}], ":=", 
+     RowBox[{"Sum", "[", 
+      RowBox[{
+       RowBox[{
+        RowBox[{
+         RowBox[{"\[Epsilon]", "^", 
+          RowBox[{"(", 
+           RowBox[{"2", " ", "n"}], ")"}]}], " ", 
+         RowBox[{"\[Omega]", "[", 
+          RowBox[{"2", " ", "n"}], "]"}]}], "/.", 
+        RowBox[{"r", "\[Rule]", "\[Rho]"}]}], ",", 
+       RowBox[{"{", 
+        RowBox[{"n", ",", "0", ",", "order"}], "}"}]}], "]"}]}], 
+    ";"}]}]}]], "Input",
+ CellChangeTimes->{{3.879055138774438*^9, 3.879055138782013*^9}, 
+   3.879143894796425*^9},
+ CellLabel->"In[1]:=",ExpressionUUID->"d64582a5-1903-4275-b56f-0eae22afe740"]
+},
+WindowSize->{788.25, 1023.75},
+WindowMargins->{{10.5, Automatic}, {10.5, Automatic}},
+TaggingRules->{
+ "WelcomeScreenSettings" -> {"FEStarting" -> False}, "TryRealOnly" -> False},
+FrontEndVersion->"12.1 for Linux x86 (64-bit) (March 18, 2020)",
+StyleDefinitions->"Default.nb",
+ExpressionUUID->"658b244a-04f2-42fd-81ba-2820b00b9ed6"
+]
+(* End of Notebook Content *)
+
+(* Internal cache information *)
+(*CellTagsOutline
+CellTagsIndex->{}
+*)
+(*CellTagsIndex
+CellTagsIndex->{}
+*)
+(*NotebookFileOutline
+Notebook[{
+Cell[558, 20, 1652, 45, 256, "Input",ExpressionUUID->"d64582a5-1903-4275-b56f-0eae22afe740"]
+}
+]
+*)
+
