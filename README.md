@@ -1,5 +1,5 @@
 # Kapitza Script
-The scripts in this directory use the method of modulated Fourier expansion to calculate the slow frequency of an inverted or Kapitza pendulum in an iterative calculation using Mathematica 12.1.
+The scripts in this directory use the method of modulated Fourier expansion to calculate the slow frequency of an inverted or Kapitza pendulum in an iterative calculation using Mathematica 12.1 and FORM (https://github.com/vermaseren/form).
 # How to use the scripts
   - Input the highest non-trivial correction you wish to calculate into the params.txt file
   - Run main script by typing "math -script freq.wls" or "math12 -script freq.wls" in the project folder
