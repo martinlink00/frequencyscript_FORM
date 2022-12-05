@@ -25,10 +25,9 @@ If[Not[DirectoryQ["exports"]],
 logfilename = "freq_"<>DateString["ISODateTime"]<>".log";
 AppendTo[$Messages,OpenWrite[FileNameJoin[{"logs",logfilename}]]];
 
-
 LogPrint[x_,type_] := Module[{},
 	Print[x];
-	outp = "["<>DateString["ISODateTime"]<>"]\t["<>type<>"]\t[Maximum RAM: "<>ToString[Round[N[MaxMemoryUsed[]/(10^9) *1.0],0.01]]<>" GB ("<>ToString[Round[N[MaxMemoryUsed[]/MemoryAvailable[] *100.0],0.01]]<>"%)]\t"<>x;
+	outp = "["<>DateString["ISODateTime"]<>"]\t["<>type<>"]\t[Maximum RAM: "<>ToString[Round[N[MaxMemoryUsed[]/(10^9) *1.0],0.1]]<>" GB ("<>ToString[Round[N[MaxMemoryUsed[]/MemoryAvailable[] *100.0],0.01]]<>"%)]\t"<>x;
 	WriteLine[FileNameJoin[{"logs",logfilename}],outp];];
 PD[]:=Print["---------------------------------------------------------------------"];
 
@@ -38,7 +37,7 @@ TransToFORM[exp_]:= Module[{tos,expor,file},
 	file=OpenWrite["expr.frm"];WriteString[file,expor];Close[file];
 ];
 
-ContainsPlusQ[eexp_] := StringContainsQ[ToString[eexp],"+"];
+ContainsPlusQ[eexp_] := StringContainsQ[ToString[eexp], {"+", "-"}];
 
 EXP[exp_] := Module[{formtime,ttformtime,bc},
 	bc = LeafCount[exp];
@@ -63,11 +62,11 @@ ExpandFORM[exp_] := Module[{sumlist,other,res},
 		Return[Expand[exp]];
 		],
 		If[ToString[Head[exp]]=="Plus",
-			(*other = DeleteCases[exp,_?ContainsPlusQ];
+			other = DeleteCases[exp,_?ContainsPlusQ];
 			sumlist = Cases[exp,_?ContainsPlusQ];
-			LogPrint["Stripping away "<>ToString[Length@(List@@other)]<>" summands.","EXP:SUM"];*)
-			res = Plus@@(Map[EXP[#]&,List@@exp]);
-			Return[res];
+			If[ToString[Head[other]]=="Plus",LogPrint["Stripping away "<>ToString[Length@(List@@other)]<>" summands.","EXP:SUM"]];
+			res = EXP[Plus@@sumlist];
+			Return[res + other];
 		,
 		Return[EXP[exp]];
 		]
@@ -123,7 +122,6 @@ WriteString[formfile,formcode];
 Close[formfile];
 LogPrint["Acquiring parameters from param.txt","RUNNING"];
 highestcoeff = If[IntegerQ[highestcoeffresp],highestcoeffresp,LogPrint["Wrong input in params.txt file!","ERROR"];Quit[]];
-
 
 PD[];
 userinfo = "Script has been executed on "<>ToString[$OperatingSystem]<>" by the user " <>ToString[$UserName]<>".";
@@ -181,7 +179,7 @@ MultilineFunction->None]\)[2 i1,j1,t]= ph[2 i1,j1+k1,t];
 	];
 ];
 
-DumpSave["ini.mx",{LogPrint,logfilename,\[Theta],\[Delta]\[Theta],\[CapitalPhi],\[Epsilon]max,highestcoeff,PD,newnot,oddphi0repl,ContainsPlusQ,EXP,ExpandFORM,TransToFORM,BetterD}]; (*Dumping basic definitions for later usage.*)
+DumpSave["ini.mx",{LogPrint,logfilename,\[Theta],\[Delta]\[Theta],\[CapitalPhi],\[Epsilon]max,highestcoeff,formthreshhold,formprintbool,formcmd,PD,newnot,oddphi0repl,ContainsPlusQ,EXP,ExpandFORM,TransToFORM,BetterD}]; (*Dumping basic definitions for later usage.*)
 
 (*Sin treatment*)
 
@@ -334,7 +332,6 @@ difmax = Min[2 highestcoeff,14];
 difference = Normal[Series[Sum[\[Epsilon]^(2 n) \[Omega][2n]/.r->\[Rho],{n,0,highestcoeff}]-reference,{\[Epsilon],0,difmax}]];
 
 DumpSave["om.mx",{\[Omega],reference,difmax,difference}];
-
 
 PD[];
 If[ToString[difference]=="0",LogPrint["### RESULTS AGREE WITH KNOWN RESULTS UP TO CORRECTION 7 ###","INFORM"];,LogPrint["### RESULTS ARE INCORRECT UP TO 7TH CORRECTION ###","ERROR"];];
