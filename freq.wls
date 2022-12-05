@@ -78,7 +78,7 @@ BetterD[exp_,t_,n_] := Module[{sumlist,derlist},
 		sumlist = List@@exp;
 		If[Length@sumlist>3000,
 			LogPrint["Derivative of sum decomposed into "<>ToString[Length@sumlist]<>" terms.","DER:DEC"];
-			derlist = ParallelMap[D[#,{t,n}]&,sumlist];,
+			derlist = Map[D[#,{t,n}]&,sumlist];,
 		derlist = Map[D[#,{t,n}]&,sumlist];];
 		Plus@@derlist,
 	D[exp,{t,n}]
