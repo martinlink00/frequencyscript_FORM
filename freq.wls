@@ -28,7 +28,7 @@ AppendTo[$Messages,OpenWrite[FileNameJoin[{"logs",logfilename}]]];
 
 LogPrint[x_,type_] := Module[{},
 	Print[x];
-	outp = "["<>DateString["ISODateTime"]<>"]\t["<>type<>"]\t[Maximum RAM: "<>ToString[Round[N[MaxMemoryUsed[]/(10^9) *1.0],0.1]]<>" GB ("<>ToString[Round[N[MaxMemoryUsed[]/MemoryAvailable[] *100.0],0.01]]<>"%)]\t"<>x;
+	outp = "["<>DateString["ISODateTime"]<>"]\t["<>type<>"]\t[Maximum RAM: "<>ToString[Round[N[MaxMemoryUsed[]/(10^9) *1.0],0.1]]<>" GB ("<>ToString[Round[N[MaxMemoryUsed[]/MemoryAvailable[] *100.0],0.1]]<>"%)]\t"<>x;
 	WriteLine[FileNameJoin[{"logs",logfilename}],outp];];
 PD[]:=Print["---------------------------------------------------------------------"];
 
