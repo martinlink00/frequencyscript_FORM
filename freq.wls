@@ -91,7 +91,7 @@ BetterD[exp_,t_,n_] := Module[{sumlist,derlist},
 PD[];
 Print[ascipic];
 PD[];
-
+Pause[1.5];
 If[$VersionNumber!=12.1,LogPrint["Version error: Script was developed on and for version 12.1.","ERROR"];Quit[],
 LogPrint["### KAPITZA FREQUENCY SCRIPT ###","RUNNING"];];
 
