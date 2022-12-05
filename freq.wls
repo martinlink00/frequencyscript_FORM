@@ -13,6 +13,7 @@ highestcoeffresp = ReadList["params.txt"][[1]];
 formthreshhold = ReadList["formconf.txt"][[1]];
 formprintbool = ToString[ReadList["formconf.txt"][[2]]];
 formcmd = If[formprintbool=="y","tform -w"<>ToString[$ProcessorCount]<>" expandfast","tform -f -w"<>ToString[$ProcessorCount]<>" expandfast"];
+formcmdlist = If[formprintbool=="y","tform -w"<>ToString[$ProcessorCount]<>" expandfastlist","tform -f -w"<>ToString[$ProcessorCount]<>" expandfastlist"];
 
 ascipic = ReadString["ascipic.txt"];
 If[Not[DirectoryQ["exports"]],
@@ -32,9 +33,35 @@ LogPrint[x_,type_] := Module[{},
 PD[]:=Print["---------------------------------------------------------------------"];
 
 TransToFORM[exp_]:= Module[{tos,expor,file},
-	tos = ToString[exp/.{f[n_][t_]:>f[n,t]},InputForm];
+	tos = ToString[exp,InputForm];
 	expor = "L expr = "<>StringReplace[tos,{"["->"(","]"->")","I"->"i_"}]<>";";
 	file=OpenWrite["expr.frm"];WriteString[file,expor];Close[file];
+];
+
+LISTTransToFORM[list_]:= Module[{string,file},
+	string = "";
+	For[iiiiiii=1,iiiiiii<=Length@list,iiiiiii++,
+		string = string<>"L expr"<>ToString[iiiiiii]<>" = "
+			<>StringReplace[ToString[list[[iiiiiii]],InputForm],
+			{"["->"(","]"->")","I"->"i_"}]
+			<>";\n";
+	];
+	string = string<>"L resu = expr1+...+expr"<>ToString[Length@list]<>";";
+	file = OpenWrite["exprlist.frm"];WriteString[file,string];Close[file];
+];
+
+EXPList[explist_] := Module[{formtime,ttformtime,bc},
+	bc = LeafCount[explist];
+	If[bc<formthreshhold,
+		Return[Plus@@Map[Expand[#]&,explist]];,
+	LogPrint["Starting FORM list (LC="<>ToString[bc]<>").","EXP:FORM"];
+	formtime = AbsoluteTime[];
+	LISTTransToFORM[explist];
+	ttformtime = AbsoluteTime[];
+	Run[formcmdlist];
+	LogPrint["FORM is done (Ts="<>ToString[Round[ttformtime-formtime,0.1]]<>"s, "<>"Tc="<>ToString[Round[AbsoluteTime[]-formtime,0.1]]<>"s).","EXP:FORM"];
+	Return[ToExpression[StringReplace[Import["expr-expanded-list.m"],{"i_"->"I"}]]];
+	];
 ];
 
 ContainsPlusQ[eexp_] := StringContainsQ[ToString[eexp], {"+", "-"}];
@@ -42,36 +69,26 @@ ContainsPlusQ[eexp_] := StringContainsQ[ToString[eexp], {"+", "-"}];
 EXP[exp_] := Module[{formtime,ttformtime,bc},
 	bc = LeafCount[exp];
 	If[bc<formthreshhold,
-		Expand[exp],
+		Return[Expand[exp]];,
 	LogPrint["Starting FORM (LC="<>ToString[bc]<>").","EXP:FORM"];
 	formtime = AbsoluteTime[];
 	TransToFORM[exp];
 	ttformtime = AbsoluteTime[];
 	Run[formcmd];
 	LogPrint["FORM is done (Ts="<>ToString[Round[ttformtime-formtime,0.1]]<>"s, "<>"Tc="<>ToString[Round[AbsoluteTime[]-formtime,0.1]]<>"s).","EXP:FORM"];
-	ToExpression[StringReplace[Import["expr-expanded.m"],{"i_"->"I"}]]
+	Return[ToExpression[StringReplace[Import["expr-expanded.m"],{"i_"->"I"}]]];
 	]
 ];
 
 ExpandFORM[exp_] := Module[{sumlist,other,res},
-	If[LeafCount[exp]<formthreshhold,
-		If[ToString[Head[exp]]=="Plus",
-			sumlist = List@@exp;
-			sumlist = Map[Expand[#]&,sumlist];
-			Return[Plus@@sumlist],
-		Return[Expand[exp]];
-		],
-		If[ToString[Head[exp]]=="Plus",
-			other = DeleteCases[exp,_?ContainsPlusQ];
-			sumlist = Cases[exp,_?ContainsPlusQ];
-			If[ToString[Head[other]]=="Plus",LogPrint["Stripping away "<>ToString[Length@(List@@other)]<>" summands.","EXP:SUM"]];
-			res = EXP[Plus@@sumlist];
-			Return[res + other];
-		,
-		Return[EXP[exp]];
-		]
-	]
+	If[ToString[Head[exp]]=="Plus",
+		sumlist = List@@exp;
+		Return[EXPList[sumlist]];
+	,
+	Return[EXP[exp]];
+	];
 ];
+
 
 BetterD[exp_,t_,n_] := Module[{sumlist,derlist},
 	If[ToString[Head[exp]]=="Plus",
@@ -80,8 +97,8 @@ BetterD[exp_,t_,n_] := Module[{sumlist,derlist},
 			LogPrint["Derivative of sum decomposed into "<>ToString[Length@sumlist]<>" terms.","DER:DEC"];
 			derlist = Map[D[#,{t,n}]&,sumlist];,
 		derlist = Map[D[#,{t,n}]&,sumlist];];
-		Plus@@derlist,
-	D[exp,{t,n}]
+		Return[Plus@@derlist],
+	Return[D[exp,{t,n}]]
 	]
 ];
 
@@ -117,9 +134,33 @@ Format Mathematica;
 
 .end";
 
+formcodelist ="On Threads;
+Auto S t;
+Auto S r;
+Auto S x;
+Auto CF y;
+Auto CF ph;
+Auto CF PH;
+Auto CF a;
+
+
+#include exprlist.frm
+
+.sort
+
+Format Mathematica;
+
+#write  <expr-expanded-list.m> \"\\\"(%E)\\\"\",resu
+
+.end";
+
 formfile = OpenWrite["expandfast.frm"];
 WriteString[formfile,formcode];
 Close[formfile];
+formfilelist = OpenWrite["expandfastlist.frm"];
+WriteString[formfilelist,formcodelist];
+Close[formfilelist];
+
 LogPrint["Acquiring parameters from param.txt","RUNNING"];
 highestcoeff = If[IntegerQ[highestcoeffresp],highestcoeffresp,LogPrint["Wrong input in params.txt file!","ERROR"];Quit[]];
 
@@ -166,6 +207,7 @@ TagBox[
 RowBox[{"(", "j", ")"}],
 Derivative],
 MultilineFunction->None]\)[t] := D[y'[t],{t,j-1}]];
+
 For[i1=0,i1<highestcoeff+1,i1++,
 	For[j1=0,j1<\[Epsilon]max+1,j1++,
 		For[k1=0,k1<\[Epsilon]max+1,k1++,
@@ -179,7 +221,7 @@ MultilineFunction->None]\)[2 i1,j1,t]= ph[2 i1,j1+k1,t];
 	];
 ];
 
-DumpSave["ini.mx",{LogPrint,logfilename,\[Theta],\[Delta]\[Theta],\[CapitalPhi],\[Epsilon]max,highestcoeff,formthreshhold,formprintbool,formcmd,PD,newnot,oddphi0repl,ContainsPlusQ,EXP,ExpandFORM,TransToFORM,BetterD}]; (*Dumping basic definitions for later usage.*)
+DumpSave["ini.mx",{LogPrint,logfilename,\[Theta],\[Delta]\[Theta],\[CapitalPhi],\[Epsilon]max,highestcoeff,formthreshhold,formprintbool,formcmd,PD,newnot,oddphi0repl,ContainsPlusQ,EXP,ExpandFORM,TransToFORM,LISTTransToFORM,EXPList,formcmd,formcmdlist,BetterD}]; (*Dumping basic definitions for later usage.*)
 
 (*Sin treatment*)
 
