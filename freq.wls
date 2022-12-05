@@ -1,6 +1,3 @@
-#!/usr/bin/env wolframscript
-(* ::Package:: *)
-
 (*
 
 Note, that results are dumpsaved into the subfolder "exports", in order to save RAM and in order to not lose results if Mathematica crashes which it tends to do.
@@ -13,6 +10,10 @@ ClearSystemCache[];
 Off[FrontEndObject::notavail];
 
 highestcoeffresp = ReadList["params.txt"][[1]];
+formthreshhold = ReadList["formconf.txt"][[1]];
+formprintbool = ToString[ReadList["formconf.txt"][[2]]];
+formcmd = If[formprintbool=="y","tform -w"<>ToString[$ProcessorCount]<>" expandfast","tform -f -w"<>ToString[$ProcessorCount]<>" expandfast"];
+
 ascipic = ReadString["ascipic.txt"];
 If[Not[DirectoryQ["exports"]],
   Print["Creating exports directory."];CreateDirectory["exports"];SetDirectory["exports"];CreateDirectory["logs"];,
@@ -22,6 +23,8 @@ If[Not[DirectoryQ["exports"]],
 (*MISCDEF*)
 
 logfilename = "freq_"<>DateString["ISODateTime"]<>".log";
+AppendTo[$Messages,OpenWrite[FileNameJoin[{"logs",logfilename}]]];
+
 
 LogPrint[x_,type_] := Module[{},
 	Print[x];
@@ -29,10 +32,9 @@ LogPrint[x_,type_] := Module[{},
 	WriteLine[FileNameJoin[{"logs",logfilename}],outp];];
 PD[]:=Print["---------------------------------------------------------------------"];
 
-
 TransToFORM[exp_]:= Module[{tos,expor,file},
 	tos = ToString[exp/.{f[n_][t_]:>f[n,t]},InputForm];
-	expor = "L expr = "<>StringReplace[tos,{"["->"(","]"->")","I"->"i_","y[t]"->"y"}]<>";";
+	expor = "L expr = "<>StringReplace[tos,{"["->"(","]"->")","I"->"i_"}]<>";";
 	file=OpenWrite["expr.frm"];WriteString[file,expor];Close[file];
 ];
 
@@ -40,35 +42,49 @@ ContainsPlusQ[eexp_] := StringContainsQ[ToString[eexp],"+"];
 
 EXP[exp_] := Module[{formtime,ttformtime,bc},
 	bc = LeafCount[exp];
+	If[bc<formthreshhold,
+		Expand[exp],
+	LogPrint["Starting FORM (LC="<>ToString[bc]<>").","EXP:FORM"];
 	formtime = AbsoluteTime[];
 	TransToFORM[exp];
 	ttformtime = AbsoluteTime[];
-	Run["form -f expandfast.frm"];
-	LogPrint["FORM was used (LC="<>ToString[bc]<>", "<>"Ts="<>ToString[Round[ttformtime-formtime,0.1]]<>"s, "<>"Tc="<>ToString[Round[AbsoluteTime[]-formtime,0.1]]<>"s).","EXP:FORM"];
-	ToExpression[StringReplace[Import["expr-expanded.m"],{"i_"->"I","y"->"y[t]"}]]
-];
-
-
-ExpandFORM[exp_] := Module[{sumlist,sumlen,other},
-	If[LeafCount[exp]<100000,
-		If[ToString[Head[exp]]=="Plus",
-			(*
-			other = DeleteCases[exp,_?ContainsPlusQ];
-			sumlist = Cases[exp,_?ContainsPlusQ];
-			sumlen = Length@sumlist;
-			*)
-			sumlist = List@@exp;
-			sumlen = Length@sumlist;
-			LogPrint["Expression decomposed into "<>ToString[sumlen]<>" summands.","EXP:SUM"];
-			sumlist = Map[Expand[#]&,sumlist];
-			Plus@@sumlist,
-		Expand[exp]
-		],
-	EXP[exp]
+	Run[formcmd];
+	LogPrint["FORM is done (Ts="<>ToString[Round[ttformtime-formtime,0.1]]<>"s, "<>"Tc="<>ToString[Round[AbsoluteTime[]-formtime,0.1]]<>"s).","EXP:FORM"];
+	ToExpression[StringReplace[Import["expr-expanded.m"],{"i_"->"I"}]]
 	]
 ];
 
-AppendTo[$Messages,OpenWrite[FileNameJoin[{"logs",logfilename}]]];
+ExpandFORM[exp_] := Module[{sumlist,other,res},
+	If[LeafCount[exp]<formthreshhold,
+		If[ToString[Head[exp]]=="Plus",
+			sumlist = List@@exp;
+			sumlist = Map[Expand[#]&,sumlist];
+			Return[Plus@@sumlist],
+		Return[Expand[exp]];
+		],
+		If[ToString[Head[exp]]=="Plus",
+			(*other = DeleteCases[exp,_?ContainsPlusQ];
+			sumlist = Cases[exp,_?ContainsPlusQ];
+			LogPrint["Stripping away "<>ToString[Length@(List@@other)]<>" summands.","EXP:SUM"];*)
+			res = Plus@@(Map[EXP[#]&,List@@exp]);
+			Return[res];
+		,
+		Return[EXP[exp]];
+		]
+	]
+];
+
+BetterD[exp_,t_,n_] := Module[{sumlist,derlist},
+	If[ToString[Head[exp]]=="Plus",
+		sumlist = List@@exp;
+		If[Length@sumlist>3000,
+			LogPrint["Derivative of sum decomposed into "<>ToString[Length@sumlist]<>" terms.","DER:DEC"];
+			derlist = ParallelMap[D[#,{t,n}]&,sumlist];,
+		derlist = Map[D[#,{t,n}]&,sumlist];];
+		Plus@@derlist,
+	D[exp,{t,n}]
+	]
+];
 
 (*INIT PRINTOUT*)
 
@@ -82,10 +98,11 @@ LogPrint["### KAPITZA FREQUENCY SCRIPT ###","RUNNING"];];
 timebeg = AbsoluteTime[];
 
 LogPrint["Generating FORM code.","RUNNING"];
-formcode = "Auto S t;
+formcode = "On Threads;
+Auto S t;
 Auto S r;
 Auto S x;
-Auto S y;
+Auto CF y;
 Auto CF ph;
 Auto CF PH;
 Auto CF a;
@@ -107,18 +124,20 @@ Close[formfile];
 LogPrint["Acquiring parameters from param.txt","RUNNING"];
 highestcoeff = If[IntegerQ[highestcoeffresp],highestcoeffresp,LogPrint["Wrong input in params.txt file!","ERROR"];Quit[]];
 
+
 PD[];
 userinfo = "Script has been executed on "<>ToString[$OperatingSystem]<>" by the user " <>ToString[$UserName]<>".";
 versioninfo = "Running on Mathematica "<>ToString[$VersionNumber]<>".";
 processorinfo = ToString[$ProcessorCount]<>" processors of type "<>ToString[$ProcessorType]<>" available.";
 memoryinfo = ToString[N[DecimalForm[MemoryAvailable[]/10^6]]]<>" MB of memory available for allocation.";
 paraminfo = "Calculating up to non-trivial correction "<>ToString[highestcoeff]<>".";
+forminfo = "Using TFORM ("<>ToString[$ProcessorCount]<>" worker threads) for LC>"<>ToString[formthreshhold]<>" ("<>If[formprintbool=="y","with ","without "]<>"printouts).";
 esttimeinfo = "Estimate resource usage from logfiles by running paramest.wls.";
 exportinfo = "Results are dumpsaved into exports.";
 loginfo = "Log is saved under exports/logs/"<>logfilename<>".";
 LogPrint["### SYSTEM INFORMATION ###","RUNNING"];
 LogPrint[userinfo,"RUN:SYS"];LogPrint[versioninfo,"RUN:SYS"];LogPrint[processorinfo,"RUN:SYS"];LogPrint[memoryinfo,"RUN:SYS"];PD[];
-LogPrint["### RUN INFORMATION ###","RUNNING"];LogPrint[paraminfo,"RUN:PRM"];LogPrint[esttimeinfo,"INFORM"];LogPrint[loginfo,"INFORM"];LogPrint[exportinfo,"INFORM"];PD[];
+LogPrint["### RUN INFORMATION ###","RUNNING"];LogPrint[paraminfo,"RUN:PRM"];LogPrint[forminfo,"RUN:PRM"];LogPrint[esttimeinfo,"INFORM"];LogPrint[loginfo,"INFORM"];LogPrint[exportinfo,"INFORM"];PD[];
 LogPrint["### NOW RUNNING SCRIPT ###","RUNNING"];PD[];
 
 (*SCRIPT*)
@@ -134,7 +153,6 @@ oddphi0repl =Flatten[Table[D[PH[0,2i+1,t],{t,k}]->0,{i,0,highestcoeff+2},{k,0,\[
 newnot = Flatten[Table[D[PH[0,2j,t],{t,k}]->ph[2 j,k,t],{j,0,highestcoeff+2},{k,0,\[Epsilon]max}],2];
 enrepl = Table[Exp[I n t]->x^n,{n,-\[Epsilon]max,\[Epsilon]max}];
 PD[];
-
 
 \[Theta]sercoeff = Series[\[Theta]/.oddphi0repl/.newnot,{ep,0,\[Epsilon]max}][[3]];
 \[Omega]sercoeff = D[\[Theta]sercoeff,t]/.enrepl;
@@ -163,8 +181,7 @@ MultilineFunction->None]\)[2 i1,j1,t]= ph[2 i1,j1+k1,t];
 	];
 ];
 
-
-DumpSave["ini.mx",{LogPrint,logfilename,\[Theta],\[Delta]\[Theta],\[CapitalPhi],\[Epsilon]max,highestcoeff,PD,newnot,oddphi0repl,ContainsPlusQ,EXP,ExpandFORM,TransToFORM}]; (*Dumping basic definitions for later usage.*)
+DumpSave["ini.mx",{LogPrint,logfilename,\[Theta],\[Delta]\[Theta],\[CapitalPhi],\[Epsilon]max,highestcoeff,PD,newnot,oddphi0repl,ContainsPlusQ,EXP,ExpandFORM,TransToFORM,BetterD}]; (*Dumping basic definitions for later usage.*)
 
 (*Sin treatment*)
 
@@ -175,7 +192,6 @@ sinexp[\[Epsilon]ord_] := If[\[Epsilon]ord<0,0,sinexplist[[\[Epsilon]ord+1]]];
 (*Declare \[Phi][n\[NotEqual]0,m,t] solutions*)
 
 PD[];LogPrint["Acquiring algebraic solutions up to eps^"<>ToString[\[Epsilon]max]<>".","PROGRESS"];
-
 
 acc0[ord_] :=  ExpandFORM[Coefficient[Expand[sinexp[ord-2]- r * 1/(2 I) * (x-1/x)sinexp[ord-1],x],x,0]];
 acc0list = Table[acc0[2 ee+2],{ee,0,highestpowercorr}];
@@ -201,7 +217,6 @@ For[i=1,i<\[Epsilon]max+1,i++,
 ];
 ClearAll[exbef];
 
-
 For[i=1,i<\[Epsilon]max+1,i++,
 	PD[];LogPrint["Declaring algebraic solutions at order eps^"<>ToString[i]<>".","PRG:ALG"];
 	(*
@@ -222,10 +237,10 @@ For[i=1,i<\[Epsilon]max+1,i++,
 		exaa = ExpandFORM[cefbef[i,j]];
 		If[j==0,
 			PH[i-j,j,t_] = exaa,
-			deraa = D[2/(i-j) I PH[i-j,j-1,t],t];
+			deraa = 2/(i-j) I BetterD[PH[i-j,j-1,t],t,1];
 			If[j==1,
 			PH[i-j,j,t_] = ExpandFORM[exaa + deraa],
-			sdera = D[1/(i-j)^2 PH[i-j,j-2,t],{t,2}];
+			sdera = 1/(i-j)^2 BetterD[PH[i-j,j-2,t],t,2];
 			PH[i-j,j,t_] = ExpandFORM[exaa + deraa + sdera];
 			];
 		];
@@ -240,20 +255,17 @@ PD[];LogPrint["All phi[n!=0,m,t] declared in "<>ToString[Round[timeacc-timebeg,0
 
 (*Effective potential treatment*)
 
-
 LogPrint["Acquiring acceleration expressions.","PROGRESS"];
 LogPrint["Declaring phi[0,2m]''[t] up to m = "<>ToString[highestcoeff]<>".","PRG:ACC"];
 
 <<acclistbef.mx;
 acc0list = Map[ExpandFORM[#]&,acc0list];
 
-
 For[m=0,m<highestcoeff+1,m++,
 	For[n=2,n<\[Epsilon]max-1,n++,
 		ph[2 m,n,t_] = a[2m,n-2,t];
 	];
 ];
-
 
 For[m=0,m<highestcoeff,m++,
 	LogPrint["Declaring phi[0,"<>ToString[2 m]<>"]''[t].","PRG:ACC"];
@@ -270,7 +282,7 @@ LogPrint["Declaring higher derivatives.","PRG:ACC"];
 For[nn=0,nn<highestcoeff+1,nn++,
 	For[mm=1,mm<\[Epsilon]max-1-2 nn,mm++,
 		LogPrint["Declaring derivative "<>ToString[mm]<>" of phi[0,"<>ToString[2 nn]<>"][t].","PRG:ACC"];
-		a[2 nn,mm,t] = ExpandFORM[D[a[2 nn,mm-1,t],t]];
+		a[2 nn,mm,t] = ExpandFORM[BetterD[a[2 nn,mm-1,t],t,1]];
 		DumpSave["a.mx",{a,ph,acc0list}];
 		ClearAll[a,ph,acc0list];
 		<<a.mx;
@@ -322,7 +334,6 @@ difmax = Min[2 highestcoeff,14];
 difference = Normal[Series[Sum[\[Epsilon]^(2 n) \[Omega][2n]/.r->\[Rho],{n,0,highestcoeff}]-reference,{\[Epsilon],0,difmax}]];
 
 DumpSave["om.mx",{\[Omega],reference,difmax,difference}];
-
 
 
 PD[];
