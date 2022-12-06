@@ -4,6 +4,52 @@ Note, that results are dumpsaved into the subfolder "exports", in order to save 
 
 *)
 
+(*-----------------------------------------------------------------------------------------------------*)
+
+(*FORM SOURCECODE*)
+
+formcode = "On Threads;
+ThreadBucketSize 1000;
+S r;
+S x;
+S y;
+Auto S ph;
+Auto S PH;
+Auto S a;
+
+
+#include expr.frm
+
+.sort
+
+Format Mathematica;
+
+#write  <expr-expanded.m> \"\\\"(%E)\\\"\",expr
+
+.end";
+
+formcodelist ="On Threads;
+ThreadBucketSize 1000;
+S r;
+S x;
+S y;
+Auto S ph;
+Auto S PH;
+Auto S a;
+
+
+#include exprlist.frm
+
+.sort
+
+Format Mathematica;
+
+#write  <expr-expanded-list.m> \"\\\"(%E)\\\"\",resu
+
+.end";
+
+(*-----------------------------------------------------------------------------------------------------*)
+
 (*INIT*)
 
 ClearSystemCache[];
@@ -22,6 +68,7 @@ If[Not[DirectoryQ["exports"]],
   Print["Creating exports directory."];CreateDirectory["exports"];SetDirectory["exports"];CreateDirectory["logs"];,
   SetDirectory["exports"];];
 
+(*-----------------------------------------------------------------------------------------------------*)
 		
 (*MISCDEF*)
 
@@ -36,7 +83,7 @@ PD[]:=Print["-------------------------------------------------------------------
 
 TransToFORM[exp_]:= Module[{tos,expor,file},
 	tos = ToString[exp,InputForm];
-	expor = "L expr = "<>StringReplace[tos,{"["->"LL","]"->"RR",", "->"DD","I"->"i_"}]<>";";
+	expor = "L expr = "<>StringReplace[tos,{"y[t]"->"y","["->"L","]"->"R",", "->"D","I"->"i_"}]<>";";
 	file=OpenWrite["expr.frm"];WriteString[file,expor];Close[file];
 ];
 
@@ -45,7 +92,7 @@ LISTTransToFORM[list_]:= Module[{string,file},
 	For[iiiiiii=1,iiiiiii<=Length@list,iiiiiii++,
 		string = string<>"L expr"<>ToString[iiiiiii]<>" = "
 			<>StringReplace[ToString[list[[iiiiiii]],InputForm],
-			{"["->"LL","]"->"RR",", "->"DD","I"->"i_"}]
+			{"y[t]"->"y","["->"L","]"->"R",", "->"D","I"->"i_"}]
 			<>";\n";
 	];
 	string = string<>"L resu = expr1+...+expr"<>ToString[Length@list]<>";";
@@ -55,14 +102,14 @@ LISTTransToFORM[list_]:= Module[{string,file},
 EXPList[explist_] := Module[{formtime,ttformtime,bc},
 	bc = LeafCount[explist];
 	If[bc<formthreshhold,
-		Return[Plus@@Map[Expand[#]&,explist]];,
+		Return[Plus@@ParallelMap[Expand[#]&,PartSum[explist]]];,
 	LogPrint["Starting FORM list (LC="<>ToString[bc]<>").","EXP:FORM"];
 	formtime = AbsoluteTime[];
 	LISTTransToFORM[explist];
 	ttformtime = AbsoluteTime[];
 	Run[formcmdlist];
 	LogPrint["FORM is done (Ts="<>ToString[Round[ttformtime-formtime,0.1]]<>"s, "<>"Tc="<>ToString[Round[AbsoluteTime[]-formtime,0.1]]<>"s).","EXP:FORM"];
-	Return[ToExpression[StringReplace[Import["expr-expanded-list.m"],{"i_"->"I","LL"->"[","RR"->"]","DD"->","}]]];
+	Return[ToExpression[StringReplace[Import["expr-expanded-list.m"],{"y"->"y[t]","i_"->"I","L"->"[","R"->"]","D"->","}]]];
 	];
 ];
 
@@ -71,14 +118,22 @@ ContainsPlusQ[eexp_] := StringContainsQ[ToString[FullForm[eexp]], {"Plus"}];
 EXP[exp_] := Module[{formtime,ttformtime,bc},
 	bc = LeafCount[exp];
 	If[bc<formthreshhold,
-		Return[Expand[exp]];,
+		If[ToString[Head[exp]]=="Plus",
+			If[Length@exp>2000*$ProcessorCount,
+				LogPrint["Expanding "<>ToString[Length@exp]<>" terms separately.","EXP:SEP"];
+				Return[Plus@@(ParallelMap[Expand[#]&,PartSum[List@@exp]])];,
+			Return[Plus@@Map[Expand[#]&,List@@exp]];			
+			];
+		,
+		Return[Expand[exp]];];
+	,
 	LogPrint["Starting FORM (LC="<>ToString[bc]<>").","EXP:FORM"];
 	formtime = AbsoluteTime[];
 	TransToFORM[exp];
 	ttformtime = AbsoluteTime[];
 	Run[formcmd];
 	LogPrint["FORM is done (Ts="<>ToString[Round[ttformtime-formtime,0.1]]<>"s, "<>"Tc="<>ToString[Round[AbsoluteTime[]-formtime,0.1]]<>"s).","EXP:FORM"];
-	Return[ToExpression[StringReplace[Import["expr-expanded.m"],{"i_"->"I","LL"->"[","RR"->"]","DD"->","}]]];
+	Return[ToExpression[StringReplace[Import["expr-expanded.m"],{"y"->"y[t]","i_"->"I","L"->"[","R"->"]","D"->","}]]];
 	];
 ];
 
@@ -86,8 +141,8 @@ ExpandFORM[exp_] := Module[{sumlist,other,res},
 	If[ToString[Head[exp]]=="Plus",
 		sumlist = Cases[exp,_?ContainsPlusQ];
 		other = DeleteCases[exp,_?ContainsPlusQ];
-		(*LogPrint["Stripped something "<>ToString[Head[other]]<>" "<>ToString[Length@other]<>".","EXP:FORM"];*)
-		Return[other + EXPList[sumlist]];
+		If[other!=0,LogPrint["Stripped "<>ToString[Length@other]<>" already expanded terms.","EXP:FORM"];];
+		Return[other + EXPList[PartSum[sumlist]]];
 		(*Return[EXP[exp]];*)
 	,
 	Return[EXP[exp]];
@@ -97,14 +152,21 @@ ExpandFORM[exp_] := Module[{sumlist,other,res},
 BetterD[exp_,t_,n_] := Module[{sumlist,derlist},
 	If[ToString[Head[exp]]=="Plus",
 		sumlist = List@@exp;
-		If[Length@sumlist>3000,
-			LogPrint["Derivative of sum decomposed into "<>ToString[Length@sumlist]<>" terms.","DER:DEC"];
-			derlist = Map[D[#,{t,n}]&,sumlist];,
+		If[Length@sumlist>2000*$ProcessorCount,
+			LogPrint["D decomposed into "<>ToString[Length@sumlist]<>" terms.","DER:DEC"];
+			derlist = ParallelMap[D[#,{t,n}]&,sumlist];,
 		derlist = Map[D[#,{t,n}]&,sumlist];];
 		Return[Plus@@derlist],
 	Return[D[exp,{t,n}]]
 	]
 ];
+
+PartSum[listexp_] := Module[{par},
+	par = Partition[listexp,UpTo[Max[Round[(Length@listexp)*1/($ProcessorCount)],1]]];
+	Return[Plus@@@par];
+];
+
+(*-----------------------------------------------------------------------------------------------------*)
 
 (*INIT PRINTOUT*)
 
@@ -118,44 +180,6 @@ LogPrint["### KAPITZA FREQUENCY SCRIPT ###","RUNNING"];];
 timebeg = AbsoluteTime[];
 
 LogPrint["Generating FORM code.","RUNNING"];
-formcode = "On Threads;
-Auto S r;
-Auto S x;
-Auto S y;
-Auto S ph;
-Auto S PH;
-Auto S a;
-
-
-#include expr.frm
-
-.sort
-
-Format Mathematica;
-
-#write  <expr-expanded.m> \"\\\"(%E)\\\"\",expr
-
-.end";
-
-formcodelist ="On Threads;
-Auto S r;
-Auto S x;
-Auto S y;
-Auto S ph;
-Auto S PH;
-Auto S a;
-
-
-#include exprlist.frm
-
-.sort
-
-Format Mathematica;
-
-#write  <expr-expanded-list.m> \"\\\"(%E)\\\"\",resu
-
-.end";
-
 formfile = OpenWrite["expandfast.frm"];
 WriteString[formfile,formcode];
 Close[formfile];
@@ -180,6 +204,8 @@ LogPrint["### SYSTEM INFORMATION ###","RUNNING"];
 LogPrint[userinfo,"RUN:SYS"];LogPrint[versioninfo,"RUN:SYS"];LogPrint[processorinfo,"RUN:SYS"];LogPrint[memoryinfo,"RUN:SYS"];PD[];
 LogPrint["### RUN INFORMATION ###","RUNNING"];LogPrint[paraminfo,"RUN:PRM"];LogPrint[forminfo,"RUN:PRM"];LogPrint[esttimeinfo,"INFORM"];LogPrint[loginfo,"INFORM"];LogPrint[exportinfo,"INFORM"];PD[];
 LogPrint["### NOW RUNNING SCRIPT ###","RUNNING"];PD[];
+
+(*-----------------------------------------------------------------------------------------------------*)
 
 (*SCRIPT*)
 
@@ -260,20 +286,18 @@ For[i=1,i<\[Epsilon]max+1,i++,
 ClearAll[exbef];
 
 For[i=1,i<\[Epsilon]max+1,i++,
-	PD[];LogPrint["Declaring algebraic solutions at order eps^"<>ToString[i]<>".","PRG:ALG"];
-	(*
-	If[i>11,
+	PD[];LogPrint["Declaring solutions at eps^"<>ToString[i]<>".","PRG:ALG"];
+	(*If[i!=1,
 		For[ll=i,ll<\[Epsilon]max+1,ll++,
-			For[kk=0,kk<i,kk++,
-				LogPrint["Expanding equations","PRG:ALG"];
-				cefbef[i,kk] = ExpandFORM[cefbef[i,kk]];
+			LogPrint["Pre-expanding equations at eps^"<>ToString[ll]<>".","PRG:ALG"];
+			For[kk=0,kk<i,kk++,		
+				cefbef[ll,kk] = ExpandFORM[cefbef[ll,kk]];
 				DumpSave["cefbef.mx",cefbef];
 				ClearAll[cefbef];
 				<<cefbef.mx;
 			];
-		];
-	];
-	*)
+		];	
+	];*)
 	For[j=0,j<i,j++,
 		LogPrint["Declaring phi["<>ToString[i-j]<>","<>ToString[j]<>"][t].","PRG:ALG"];
 		exaa = ExpandFORM[cefbef[i,j]];
