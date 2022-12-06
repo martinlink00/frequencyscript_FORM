@@ -14,6 +14,8 @@ formthreshhold = ReadList["formconf.txt"][[1]];
 formprintbool = ToString[ReadList["formconf.txt"][[2]]];
 formcmd = If[formprintbool=="y","tform -w"<>ToString[$ProcessorCount]<>" expandfast","tform -f -w"<>ToString[$ProcessorCount]<>" expandfast"];
 formcmdlist = If[formprintbool=="y","tform -w"<>ToString[$ProcessorCount]<>" expandfastlist","tform -f -w"<>ToString[$ProcessorCount]<>" expandfastlist"];
+(*formcmd = "form -f expandfast";
+formcmdlist = "form -f expandfastlist";*)
 
 ascipic = ReadString["ascipic.txt"];
 If[Not[DirectoryQ["exports"]],
@@ -34,7 +36,7 @@ PD[]:=Print["-------------------------------------------------------------------
 
 TransToFORM[exp_]:= Module[{tos,expor,file},
 	tos = ToString[exp,InputForm];
-	expor = "L expr = "<>StringReplace[tos,{"["->"(","]"->")","I"->"i_"}]<>";";
+	expor = "L expr = "<>StringReplace[tos,{"["->"LL","]"->"RR",", "->"DD","I"->"i_"}]<>";";
 	file=OpenWrite["expr.frm"];WriteString[file,expor];Close[file];
 ];
 
@@ -43,7 +45,7 @@ LISTTransToFORM[list_]:= Module[{string,file},
 	For[iiiiiii=1,iiiiiii<=Length@list,iiiiiii++,
 		string = string<>"L expr"<>ToString[iiiiiii]<>" = "
 			<>StringReplace[ToString[list[[iiiiiii]],InputForm],
-			{"["->"(","]"->")","I"->"i_"}]
+			{"["->"LL","]"->"RR",", "->"DD","I"->"i_"}]
 			<>";\n";
 	];
 	string = string<>"L resu = expr1+...+expr"<>ToString[Length@list]<>";";
@@ -60,11 +62,11 @@ EXPList[explist_] := Module[{formtime,ttformtime,bc},
 	ttformtime = AbsoluteTime[];
 	Run[formcmdlist];
 	LogPrint["FORM is done (Ts="<>ToString[Round[ttformtime-formtime,0.1]]<>"s, "<>"Tc="<>ToString[Round[AbsoluteTime[]-formtime,0.1]]<>"s).","EXP:FORM"];
-	Return[ToExpression[StringReplace[Import["expr-expanded-list.m"],{"i_"->"I"}]]];
+	Return[ToExpression[StringReplace[Import["expr-expanded-list.m"],{"i_"->"I","LL"->"[","RR"->"]","DD"->","}]]];
 	];
 ];
 
-ContainsPlusQ[eexp_] := StringContainsQ[ToString[eexp], {"+", "-"}];
+ContainsPlusQ[eexp_] := StringContainsQ[ToString[FullForm[eexp]], {"Plus"}];
 
 EXP[exp_] := Module[{formtime,ttformtime,bc},
 	bc = LeafCount[exp];
@@ -76,19 +78,21 @@ EXP[exp_] := Module[{formtime,ttformtime,bc},
 	ttformtime = AbsoluteTime[];
 	Run[formcmd];
 	LogPrint["FORM is done (Ts="<>ToString[Round[ttformtime-formtime,0.1]]<>"s, "<>"Tc="<>ToString[Round[AbsoluteTime[]-formtime,0.1]]<>"s).","EXP:FORM"];
-	Return[ToExpression[StringReplace[Import["expr-expanded.m"],{"i_"->"I"}]]];
-	]
+	Return[ToExpression[StringReplace[Import["expr-expanded.m"],{"i_"->"I","LL"->"[","RR"->"]","DD"->","}]]];
+	];
 ];
 
 ExpandFORM[exp_] := Module[{sumlist,other,res},
 	If[ToString[Head[exp]]=="Plus",
-		sumlist = List@@exp;
-		Return[EXPList[sumlist]];
+		sumlist = Cases[exp,_?ContainsPlusQ];
+		other = DeleteCases[exp,_?ContainsPlusQ];
+		(*LogPrint["Stripped something "<>ToString[Head[other]]<>" "<>ToString[Length@other]<>".","EXP:FORM"];*)
+		Return[other + EXPList[sumlist]];
+		(*Return[EXP[exp]];*)
 	,
 	Return[EXP[exp]];
 	];
 ];
-
 
 BetterD[exp_,t_,n_] := Module[{sumlist,derlist},
 	If[ToString[Head[exp]]=="Plus",
@@ -115,13 +119,12 @@ timebeg = AbsoluteTime[];
 
 LogPrint["Generating FORM code.","RUNNING"];
 formcode = "On Threads;
-Auto S t;
 Auto S r;
 Auto S x;
-Auto CF y;
-Auto CF ph;
-Auto CF PH;
-Auto CF a;
+Auto S y;
+Auto S ph;
+Auto S PH;
+Auto S a;
 
 
 #include expr.frm
@@ -135,13 +138,12 @@ Format Mathematica;
 .end";
 
 formcodelist ="On Threads;
-Auto S t;
 Auto S r;
 Auto S x;
-Auto CF y;
-Auto CF ph;
-Auto CF PH;
-Auto CF a;
+Auto S y;
+Auto S ph;
+Auto S PH;
+Auto S a;
 
 
 #include exprlist.frm
