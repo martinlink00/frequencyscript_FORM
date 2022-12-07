@@ -106,7 +106,7 @@ LISTTransToFORM[list_]:= Module[{string,file},
 EXPList[explist_] := Module[{formtime,ttformtime,bc},
 	bc = LeafCount[explist];
 	If[bc<formthreshhold,
-		Return[Plus@@Map[Expand[#]&,PartSum[explist]]];,
+		Return[Plus@@Map[Expand[#]&,explist]];,
 	LogPrint["Starting FORM list (LC="<>ToString[bc]<>").","EXP:FORM"];
 	formtime = AbsoluteTime[];
 	LISTTransToFORM[explist];
@@ -125,7 +125,7 @@ EXP[exp_] := Module[{formtime,ttformtime,bc},
 		If[ToString[Head[exp]]=="Plus",
 			If[Length@exp>2000*$ProcessorCount,
 				LogPrint["Expanding "<>ToString[Length@exp]<>" terms separately.","EXP:SEP"];
-				Return[Plus@@(Map[Expand[#]&,PartSum[List@@exp]])];,
+				Return[Plus@@(Map[Expand[#]&,List@@exp])];,
 			Return[Plus@@Map[Expand[#]&,List@@exp]];			
 			];
 		,
@@ -143,7 +143,7 @@ EXP[exp_] := Module[{formtime,ttformtime,bc},
 
 ExpandFORM[exp_] := Module[{sumlist,other,res},
 	If[ToString[Head[exp]]=="Plus",
-		(*Return[EXPList[PartSum[List@@exp]]];*)
+		(*Return[EXPList[List@@exp]];*)
 		Return[EXP[exp]];
 	,
 	Return[EXP[exp]];
