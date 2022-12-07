@@ -1,3 +1,6 @@
+#!/usr/bin/env wolframscript
+(* ::Package:: *)
+
 (*
 
 Note, that results are dumpsaved into the subfolder "exports", in order to save RAM and in order to not lose results if Mathematica crashes which it tends to do.
@@ -8,16 +11,16 @@ Note, that results are dumpsaved into the subfolder "exports", in order to save 
 
 (*FORM SOURCECODE*)
 
-formcode = "On Threads;
-On ThreadStats;
-ThreadBucketSize 1000;
-S r;
+formcode = "S r;
 S x;
 S y;
 Auto S ph;
 Auto S PH;
 Auto S a;
-
+On Threads;
+On ThreadStats;
+ThreadBucketSize 1000;
+On ThreadStats;
 
 #include expr.frm
 
@@ -29,17 +32,16 @@ Format Mathematica;
 
 .end";
 
-formcodelist ="On Threads;
-On ThreadStats;
-ThreadBucketSize 1000;
-inparallel;
-S r;
+formcodelist ="S r;
 S x;
 S y;
 Auto S ph;
 Auto S PH;
 Auto S a;
-
+On Threads;
+On ThreadStats;
+ThreadBucketSize 1000;
+inparallel;
 
 #include exprlist.frm
 
@@ -99,7 +101,7 @@ LISTTransToFORM[list_]:= Module[{string,file},
 			<>";\n";
 	];
 	string = string<>".sort \n";
-	string = string<>"L resu = expr1+...+expr"<>ToString[Length@list]<>";";
+	string = If[Length@list==1,string<>"L resu = expr1;",string<>"L resu = expr1+...+expr"<>ToString[Length@list]<>";"];
 	file = OpenWrite["exprlist.frm"];WriteString[file,string];Close[file];
 ];
 
@@ -122,14 +124,7 @@ ContainsPlusQ[eexp_] := StringContainsQ[ToString[FullForm[eexp]], {"Plus"}];
 EXP[exp_] := Module[{formtime,ttformtime,bc},
 	bc = LeafCount[exp];
 	If[bc<formthreshhold,
-		If[ToString[Head[exp]]=="Plus",
-			If[Length@exp>2000*$ProcessorCount,
-				LogPrint["Expanding "<>ToString[Length@exp]<>" terms separately.","EXP:SEP"];
-				Return[Plus@@(Map[Expand[#]&,List@@exp])];,
-			Return[Plus@@Map[Expand[#]&,List@@exp]];			
-			];
-		,
-		Return[Expand[exp]];];
+		Return[Expand[exp]];
 	,
 	LogPrint["Starting FORM (LC="<>ToString[bc]<>").","EXP:FORM"];
 	formtime = AbsoluteTime[];
@@ -143,8 +138,8 @@ EXP[exp_] := Module[{formtime,ttformtime,bc},
 
 ExpandFORM[exp_] := Module[{sumlist,other,res},
 	If[ToString[Head[exp]]=="Plus",
-		(*Return[EXPList[List@@exp]];*)
-		Return[EXP[exp]];
+		Return[EXPList[List@@exp]];
+		(*Return[EXP[exp]];*)
 	,
 	Return[EXP[exp]];
 	];
