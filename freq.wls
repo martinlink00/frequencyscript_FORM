@@ -43,8 +43,6 @@ Auto S a;
 
 #include exprlist.frm
 
-.sort
-
 Format Mathematica;
 
 #write  <expr-expanded-list.m> \"\\\"(%E)\\\"\",resu
@@ -98,6 +96,7 @@ LISTTransToFORM[list_]:= Module[{string,file},
 			{"y[t]"->"y","["->"L","]"->"R",", "->"D","I"->"i_"}]
 			<>";\n";
 	];
+	string = string<>".sort \n";
 	string = string<>"L resu = expr1+...+expr"<>ToString[Length@list]<>";";
 	file = OpenWrite["exprlist.frm"];WriteString[file,string];Close[file];
 ];
