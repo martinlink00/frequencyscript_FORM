@@ -139,8 +139,8 @@ EXP[exp_] := Module[{formtime,ttformtime,bc},
 
 ExpandFORM[exp_] := Module[{sumlist,other,res},
 	If[ToString[Head[exp]]=="Plus",
-		Return[EXPList[PartSum[List@@exp]]];
-		(*Return[EXP[exp]];*)
+		(*Return[EXPList[PartSum[List@@exp]]];*)
+		Return[EXP[exp]];
 	,
 	Return[EXP[exp]];
 	];
