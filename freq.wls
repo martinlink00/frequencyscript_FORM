@@ -9,6 +9,7 @@ Note, that results are dumpsaved into the subfolder "exports", in order to save 
 (*FORM SOURCECODE*)
 
 formcode = "On Threads;
+On ThreadStats;
 ThreadBucketSize 1000;
 S r;
 S x;
@@ -29,7 +30,9 @@ Format Mathematica;
 .end";
 
 formcodelist ="On Threads;
+On ThreadStats;
 ThreadBucketSize 1000;
+inparallel;
 S r;
 S x;
 S y;
