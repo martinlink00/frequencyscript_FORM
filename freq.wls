@@ -345,7 +345,7 @@ LogPrint["Declaring higher derivatives.","PRG:ACC"];
 For[nn=0,nn<highestcoeff+1,nn++,
 	For[mm=1,mm<\[Epsilon]max-1-2 nn,mm++,
 		LogPrint["Declaring derivative "<>ToString[mm]<>" of phi[0,"<>ToString[2 nn]<>"][t].","PRG:ACC"];
-		a[2 nn,mm,t] = BetterD[a[2 nn,mm-1,t],t,1];
+		a[2 nn,mm,t] = ExpandFORM[BetterD[a[2 nn,mm-1,t],t,1]];
 		DumpSave["a.mx",{a,ph,acc0list}];
 		ClearAll[a,ph,acc0list];
 		<<a.mx;
