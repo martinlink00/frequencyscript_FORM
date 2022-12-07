@@ -43,6 +43,8 @@ Auto S a;
 
 #include exprlist.frm
 
+.sort
+
 Format Mathematica;
 
 #write  <expr-expanded-list.m> \"\\\"(%E)\\\"\",resu
