@@ -139,10 +139,7 @@ EXP[exp_] := Module[{formtime,ttformtime,bc},
 
 ExpandFORM[exp_] := Module[{sumlist,other,res},
 	If[ToString[Head[exp]]=="Plus",
-		sumlist = Cases[exp,_?ContainsPlusQ];
-		other = DeleteCases[exp,_?ContainsPlusQ];
-		If[other!=0,LogPrint["Stripped "<>ToString[Length@other]<>" already expanded terms.","EXP:FORM"];];
-		Return[other + EXPList[PartSum[sumlist]]];
+		Return[EXPList[PartSum[List@@exp]]];
 		(*Return[EXP[exp]];*)
 	,
 	Return[EXP[exp]];
