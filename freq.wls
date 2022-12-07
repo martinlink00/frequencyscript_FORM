@@ -102,7 +102,7 @@ LISTTransToFORM[list_]:= Module[{string,file},
 EXPList[explist_] := Module[{formtime,ttformtime,bc},
 	bc = LeafCount[explist];
 	If[bc<formthreshhold,
-		Return[Plus@@ParallelMap[Expand[#]&,PartSum[explist]]];,
+		Return[Plus@@Map[Expand[#]&,PartSum[explist]]];,
 	LogPrint["Starting FORM list (LC="<>ToString[bc]<>").","EXP:FORM"];
 	formtime = AbsoluteTime[];
 	LISTTransToFORM[explist];
@@ -121,7 +121,7 @@ EXP[exp_] := Module[{formtime,ttformtime,bc},
 		If[ToString[Head[exp]]=="Plus",
 			If[Length@exp>2000*$ProcessorCount,
 				LogPrint["Expanding "<>ToString[Length@exp]<>" terms separately.","EXP:SEP"];
-				Return[Plus@@(ParallelMap[Expand[#]&,PartSum[List@@exp]])];,
+				Return[Plus@@(Map[Expand[#]&,PartSum[List@@exp]])];,
 			Return[Plus@@Map[Expand[#]&,List@@exp]];			
 			];
 		,
@@ -151,7 +151,7 @@ BetterD[exp_,t_,n_] := Module[{sumlist,derlist},
 		sumlist = List@@exp;
 		If[Length@sumlist>2000*$ProcessorCount,
 			LogPrint["D decomposed into "<>ToString[Length@sumlist]<>" terms.","DER:DEC"];
-			derlist = ParallelMap[D[#,{t,n}]&,sumlist];,
+			derlist = Map[D[#,{t,n}]&,sumlist];,
 		derlist = Map[D[#,{t,n}]&,sumlist];];
 		Return[Plus@@derlist],
 	Return[D[exp,{t,n}]]
