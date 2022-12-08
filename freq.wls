@@ -67,7 +67,10 @@ formcmdlist = "form -f expandfastlist";*)
 
 ascipic = ReadString["ascipic.txt"];
 If[Not[DirectoryQ["exports"]],
-  Print["Creating exports directory."];CreateDirectory["exports"];SetDirectory["exports"];CreateDirectory["logs"];,
+  Print["Creating exports directory."];
+  CreateDirectory["exports"];SetDirectory["exports"];
+  CreateDirectory["logs"];
+  CreateDirectory["formlogs"];,
   SetDirectory["exports"];];
 
 (*-----------------------------------------------------------------------------------------------------*)
@@ -102,7 +105,7 @@ LISTTransToFORM[list_]:= Module[{string,file},
 	file = OpenWrite["exprlist.frm"];WriteString[file,string];Close[file];
 ];
 
-EXPList[explist_] := Module[{formtime,ttformtime,bc},
+EXPList[explist_] := Module[{formtime,ttformtime,bc,logfilename},
 	bc = LeafCount[explist];
 	If[bc<formthreshhold,
 		Return[Plus@@Map[Expand[#]&,explist]];,
@@ -112,13 +115,15 @@ EXPList[explist_] := Module[{formtime,ttformtime,bc},
 	ttformtime = AbsoluteTime[];
 	Run[formcmdlist];
 	LogPrint["FORM is done (Ts="<>ToString[Round[ttformtime-formtime,0.1]]<>"s, "<>"Tc="<>ToString[Round[AbsoluteTime[]-formtime,0.1]]<>"s).","EXP:FORM"];
+	logfilename = "EXPList_"<>DateString["ISODateTime"]<>".log";
+	CopyFile["expandfastlist.log",FileNameJoin[{"formlogs",logfilename}]];
 	Return[ToExpression[StringReplace[Import["expr-expanded-list.m"],{"y"->"y[t]","i_"->"I","L"->"[","R"->"]","D"->","}]]];
 	];
 ];
 
 ContainsPlusQ[eexp_] := StringContainsQ[ToString[FullForm[eexp]], {"Plus"}];
 
-EXP[exp_] := Module[{formtime,ttformtime,bc},
+EXP[exp_] := Module[{formtime,ttformtime,bc,logfilename},
 	bc = LeafCount[exp];
 	If[bc<formthreshhold,
 		Return[Expand[exp]];
@@ -129,6 +134,8 @@ EXP[exp_] := Module[{formtime,ttformtime,bc},
 	ttformtime = AbsoluteTime[];
 	Run[formcmd];
 	LogPrint["FORM is done (Ts="<>ToString[Round[ttformtime-formtime,0.1]]<>"s, "<>"Tc="<>ToString[Round[AbsoluteTime[]-formtime,0.1]]<>"s).","EXP:FORM"];
+	logfilename = "EXP"<>DateString["ISODateTime"]<>".log";
+	CopyFile["expandfast.log",FileNameJoin[{"formlogs",logfilename}]];
 	Return[ToExpression[StringReplace[Import["expr-expanded.m"],{"y"->"y[t]","i_"->"I","L"->"[","R"->"]","D"->","}]]];
 	];
 ];
