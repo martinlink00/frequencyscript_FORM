@@ -1,6 +1,3 @@
-#!/usr/bin/env wolframscript
-(* ::Package:: *)
-
 (*
 
 Note, that results are dumpsaved into the subfolder "exports", in order to save RAM and in order to not lose results if Mathematica crashes which it tends to do.
@@ -331,7 +328,7 @@ For[m=0,m<highestcoeff+1,m++,
 
 For[m=0,m<highestcoeff,m++,
 	LogPrint["Declaring phi[0,"<>ToString[2 m]<>"]''[t].","PRG:ACC"];
-	a[2 m,0,t_] = acc0list[[m+1]];
+	a[2 m,0,t_] = ExpandFORM[acc0list[[m+1]]];
 	acc0list = Map[Evaluate[ExpandFORM[#]]&,acc0list];
 	DumpSave["a.mx",{a,ph,acc0list}];
 	ClearAll[a,ph,acc0list];
