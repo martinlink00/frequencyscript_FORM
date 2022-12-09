@@ -100,7 +100,7 @@ LISTTransToFORM[list_]:= Module[{string,file},
 		string = string<>"L expr"<>ToString[iiiiiii]<>" = "
 			<>StringReplace[ToString[list[[iiiiiii]],InputForm],
 			{"y[t]"->"y","["->"L","]"->"R",", "->"D","I"->"i_"}]
-			<>";\n";
+			<>";\n\n";
 	];
 	string = string<>".sort \n";
 	string = If[Length@list==1,string<>"L resu = expr1;",string<>"L resu = expr1+...+expr"<>ToString[Length@list]<>";"];
@@ -145,6 +145,7 @@ EXP[exp_] := Module[{formtime,ttformtime,bc,logfilename},
 ExpandFORM[exp_] := Module[{sumlist,other,res},
 	If[ToString[Head[exp]]=="Plus",
 		sumlist = Partition[List@@exp,UpTo[2000]];
+		If[Length@sumlist!=1,LogPrint["Expanding in "<>ToString[Length@sumlist]<>" blocks.","EXP:DEC"];];
 		res = 0;
 		For[iii=1,iii<Length@sumlist+1,iii++,
 			res += EXPList[sumlist[[iii]]];
