@@ -8,47 +8,45 @@ Note, that results are dumpsaved into the subfolder "exports", in order to save 
 
 (*FORM SOURCECODE*)
 
-formcode = "S r;
-S x;
-S y;
-Auto S ph;
-Auto S PH;
-Auto S a;
+formcode = "S r,x,y;
+Auto S p,P,a;
 On Threads;
+On ShortStats;
 On NoSpacesInNumbers;
 On ThreadStats;
-ThreadBucketSize 1000;
+ThreadBucketSize 700;
 On ThreadStats;
 
 #include expr.frm
 
 .sort
 
+Format NoSpaces;
+Format O4;
 Format Mathematica;
 
 #write  <expr-expanded.m> \"\\\"(%E)\\\"\",expr
 
 .end";
 
-formcodelist ="S r;
-S x;
-S y;
-Auto S ph;
-Auto S PH;
-Auto S a;
+formcodelist ="S r,x,y;
+Auto S p,P,a;
 On Threads;
+On ShortStats;
 On NoSpacesInNumbers;
 On ThreadStats;
-ThreadBucketSize 1000;
+ThreadBucketSize 700;
 inparallel;
 
 #include exprlist.frm
 
 .sort
 
+Format NoSpaces;
+Format O4;
 Format Mathematica;
 
-#write  <expr-expanded-list.m> \"\\\"(%E)\\\"\",resu
+#write  <expr-expanded-list.m> \"\\\"(%E)\\\"\",res
 
 .end";
 
@@ -90,20 +88,20 @@ PD[]:=Print["-------------------------------------------------------------------
 
 TransToFORM[exp_]:= Module[{tos,expor,file},
 	tos = ToString[exp,InputForm];
-	expor = "L expr = "<>StringReplace[tos,{"y[t]"->"y","["->"L","]"->"R",", "->"D","I"->"i_"}]<>";";
+	expor = "L expr = "<>StringReplace[tos,{"y[t]"->"y","["->"L",", t]"->"R",", "->"D","I"->"i_"}]<>";";
 	file=OpenWrite["expr.frm"];WriteString[file,expor];Close[file];
 ];
 
 LISTTransToFORM[list_]:= Module[{string,file},
 	string = "";
 	For[iiiiiii=1,iiiiiii<=Length@list,iiiiiii++,
-		string = string<>"L expr"<>ToString[iiiiiii]<>" = "
+		string = string<>"L ex"<>ToString[iiiiiii]<>" = "
 			<>StringReplace[ToString[list[[iiiiiii]],InputForm],
-			{"y[t]"->"y","["->"L","]"->"R",", "->"D","I"->"i_"}]
+			{"y[t]"->"y","["->"L", ", t]"->"R",", "->"D","I"->"i_"}]
 			<>";\n\n";
 	];
 	string = string<>".sort \n";
-	string = If[Length@list==1,string<>"L resu = expr1;",string<>"L resu = expr1+...+expr"<>ToString[Length@list]<>";"];
+	string = If[Length@list==1,string<>"L res = ex1;",string<>"L res = ex1+...+ex"<>ToString[Length@list]<>";"];
 	file = OpenWrite["exprlist.frm"];WriteString[file,string];Close[file];
 ];
 
@@ -119,7 +117,7 @@ EXPList[explist_] := Module[{formtime,ttformtime,bc,logfilename},
 	LogPrint["FORM is done (Ts="<>ToString[Round[ttformtime-formtime,0.1]]<>"s, "<>"Tc="<>ToString[Round[AbsoluteTime[]-formtime,0.1]]<>"s).","EXP:FORM"];
 	logfilename = "EXPList_"<>DateString["ISODateTime"]<>".log";
 	CopyFile["expandfastlist.log",FileNameJoin[{"formlogs",logfilename}]];
-	Return[ToExpression[StringReplace[Import["expr-expanded-list.m"],{"y"->"y[t]","i_"->"I","L"->"[","R"->"]","D"->","}]]];
+	Return[ToExpression[StringReplace[Import["expr-expanded-list.m"],{"y"->"y[t]","i_"->"I","L"->"[","R"->",t]","D"->","}]]];
 	];
 ];
 
@@ -138,7 +136,7 @@ EXP[exp_] := Module[{formtime,ttformtime,bc,logfilename},
 	LogPrint["FORM is done (Ts="<>ToString[Round[ttformtime-formtime,0.1]]<>"s, "<>"Tc="<>ToString[Round[AbsoluteTime[]-formtime,0.1]]<>"s).","EXP:FORM"];
 	logfilename = "EXP"<>DateString["ISODateTime"]<>".log";
 	CopyFile["expandfast.log",FileNameJoin[{"formlogs",logfilename}]];
-	Return[ToExpression[StringReplace[Import["expr-expanded.m"],{"y"->"y[t]","i_"->"I","L"->"[","R"->"]","D"->","}]]];
+	Return[ToExpression[StringReplace[Import["expr-expanded.m"],{"y"->"y[t]","i_"->"I","L"->"[","R"->",t]","D"->","}]]];
 	];
 ];
 
@@ -221,11 +219,11 @@ LogPrint["Initiating.","PROGRESS"];
 \[Epsilon]max = 2 * highestcoeff + 2; (*Max collected \[Epsilon]*)
 highestpowercorr=highestcoeff; (*Highest power correction*)
 e[n_,t]:=Exp[I n t];
-\[CapitalPhi][n_] := ep^(Abs[n])*Piecewise[{{Sum[PH[n,m,t]ep^m,{m,0,\[Epsilon]max-n}],n>=0}},Sum[(-1)^(n+m)PH[-n,m,t] ep^m,{m,0,\[Epsilon]max-n}]];
+\[CapitalPhi][n_] := ep^(Abs[n])*Piecewise[{{Sum[P[n,m,t]ep^m,{m,0,\[Epsilon]max-n}],n>=0}},Sum[(-1)^(n+m)P[-n,m,t] ep^m,{m,0,\[Epsilon]max-n}]];
 \[Delta]\[Theta]= Sum[If[n==0,0,e[n,t]\[CapitalPhi][n]],{n,-\[Epsilon]max,\[Epsilon]max}]; (*\[Delta]\[Theta] Ansatz*)
 \[Theta]= \[CapitalPhi][0] +\[Delta]\[Theta];
-oddphi0repl =Flatten[Table[D[PH[0,2i+1,t],{t,k}]->0,{i,0,highestcoeff+2},{k,0,\[Epsilon]max}]];
-newnot = Flatten[Table[D[PH[0,2j,t],{t,k}]->ph[2 j,k,t],{j,0,highestcoeff+2},{k,0,\[Epsilon]max}],2];
+oddphi0repl =Flatten[Table[D[P[0,2i+1,t],{t,k}]->0,{i,0,highestcoeff+2},{k,0,\[Epsilon]max}]];
+newnot = Flatten[Table[D[P[0,2j,t],{t,k}]->p[2 j,k,t],{j,0,highestcoeff+2},{k,0,\[Epsilon]max}],2];
 enrepl = Table[Exp[I n t]->x^n,{n,-\[Epsilon]max,\[Epsilon]max}];
 PD[];
 
@@ -237,7 +235,7 @@ sinser = Series[Sin[\[CurlyPhi][0][t]+\[Delta]],{\[Delta],0,\[Epsilon]max-1}][[3
 bellargument = Table[Table[Factorial[i]\[Theta]sercoeff[[i+1]],{i,1,n}],{n,1,\[Epsilon]max}];
 sinexpfunc[epsord_] := If[epsord<0,0,If[epsord==0,1/(2 I) y[t]-1/(2 I)*1/y[t],1/Factorial[epsord] Sum[Factorial[n]sinser[[n+1]]BellY[epsord,n,bellargument[[epsord-n+1]]],{n,1,epsord}]]];
 
-y'[t] := I ph[0,1,t]y[t];
+y'[t] := I p[0,1,t]y[t];
 For[j=2,j<\[Epsilon]max+2,j++,\!\(\*SuperscriptBox[\(y\), 
 TagBox[
 RowBox[{"(", "j", ")"}],
@@ -247,12 +245,12 @@ MultilineFunction->None]\)[t] := D[y'[t],{t,j-1}]];
 For[i1=0,i1<highestcoeff+1,i1++,
 	For[j1=0,j1<\[Epsilon]max+1,j1++,
 		For[k1=0,k1<\[Epsilon]max+1,k1++,
-			\!\(\*SuperscriptBox[\(ph\), 
+			\!\(\*SuperscriptBox[\(p\), 
 TagBox[
 RowBox[{"(", 
 RowBox[{"0", ",", "0", ",", "k1"}], ")"}],
 Derivative],
-MultilineFunction->None]\)[2 i1,j1,t]= ph[2 i1,j1+k1,t];
+MultilineFunction->None]\)[2 i1,j1,t]= p[2 i1,j1+k1,t];
 		]
 	];
 ];
@@ -310,16 +308,16 @@ For[i=1,i<\[Epsilon]max+1,i++,
 		LogPrint["Declaring phi["<>ToString[i-j]<>","<>ToString[j]<>"][t].","PRG:ALG"];
 		exaa = ExpandFORM[cefbef[i,j]];
 		If[j==0,
-			PH[i-j,j,t_] = exaa,
-			deraa = 2/(i-j) I BetterD[PH[i-j,j-1,t],t,1];
+			P[i-j,j,t_] = exaa,
+			deraa = 2/(i-j) I BetterD[P[i-j,j-1,t],t,1];
 			If[j==1,
-			PH[i-j,j,t_] = ExpandFORM[exaa + deraa],
-			sdera = 1/(i-j)^2 BetterD[PH[i-j,j-2,t],t,2];
-			PH[i-j,j,t_] = ExpandFORM[exaa + deraa + sdera];
+			P[i-j,j,t_] = ExpandFORM[exaa + deraa],
+			sdera = 1/(i-j)^2 BetterD[P[i-j,j-2,t],t,2];
+			P[i-j,j,t_] = ExpandFORM[exaa + deraa + sdera];
 			];
 		];
-		DumpSave["phi.mx",PH];
-		Clear[PH];
+		DumpSave["phi.mx",P];
+		Clear[P];
 		<<phi.mx;
 	];
 ];
@@ -337,7 +335,7 @@ acc0list = Map[ExpandFORM[#]&,acc0list];
 
 For[m=0,m<highestcoeff+1,m++,
 	For[n=2,n<\[Epsilon]max-1,n++,
-		ph[2 m,n,t_] = a[2m,n-2,t];
+		p[2 m,n,t_] = a[2m,n-2,t];
 	];
 ];
 
@@ -345,8 +343,8 @@ For[m=0,m<highestcoeff,m++,
 	LogPrint["Declaring phi[0,"<>ToString[2 m]<>"]''[t].","PRG:ACC"];
 	a[2 m,0,t_] = ExpandFORM[acc0list[[m+1]]];
 	acc0list = Map[Evaluate[ExpandFORM[#]]&,acc0list];
-	DumpSave["a.mx",{a,ph,acc0list}];
-	ClearAll[a,ph,acc0list];
+	DumpSave["a.mx",{a,p,acc0list}];
+	ClearAll[a,p,acc0list];
 	<<a.mx;
 ];
 
@@ -357,15 +355,15 @@ For[nn=0,nn<highestcoeff+1,nn++,
 	For[mm=1,mm<\[Epsilon]max-1-2 nn,mm++,
 		LogPrint["Declaring derivative "<>ToString[mm]<>" of phi[0,"<>ToString[2 nn]<>"][t].","PRG:ACC"];
 		a[2 nn,mm,t] = ExpandFORM[BetterD[a[2 nn,mm-1,t],t,1]];
-		DumpSave["a.mx",{a,ph,acc0list}];
-		ClearAll[a,ph,acc0list];
+		DumpSave["a.mx",{a,p,acc0list}];
+		ClearAll[a,p,acc0list];
 		<<a.mx;
 	];
 ];
 
 PD[];LogPrint["Setting phi[0,2m][t] and phi[0,2m]'[t] to zero.","PRG:ACC"];
-ph[n_,0,t] = 0;
-ph[n_,1,t] = 0;
+p[n_,0,t] = 0;
+p[n_,1,t] = 0;
 acc0list = Map[ExpandFORM[#]&,acc0list];
 DumpSave["acc0listend.mx",acc0list];
 timeend = AbsoluteTime[];
