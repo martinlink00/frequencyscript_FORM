@@ -11,11 +11,9 @@ Note, that results are dumpsaved into the subfolder "exports", in order to save 
 formcode = "S r,x,y;
 Auto S p,P,a;
 On Threads;
-On ShortStats;
 On NoSpacesInNumbers;
 On ThreadStats;
 ThreadBucketSize 700;
-On ThreadStats;
 
 #include expr.frm
 
@@ -32,7 +30,6 @@ Format Mathematica;
 formcodelist ="S r,x,y;
 Auto S p,P,a;
 On Threads;
-On ShortStats;
 On NoSpacesInNumbers;
 On ThreadStats;
 ThreadBucketSize 700;
