@@ -222,7 +222,7 @@ e[n_,t]:=Exp[I n t];
 oddphi0repl =Flatten[Table[D[P[0,2i+1,t],{t,k}]->0,{i,0,highestcoeff+2},{k,0,\[Epsilon]max}]];
 newnot = Flatten[Table[D[P[0,2j,t],{t,k}]->p[2 j,k,t],{j,0,highestcoeff+2},{k,0,\[Epsilon]max}],2];
 enrepl = Table[Exp[I n t]->x^n,{n,-\[Epsilon]max,\[Epsilon]max}];
-PD[];
+
 
 \[Theta]sercoeff = Series[\[Theta]/.oddphi0repl/.newnot,{ep,0,\[Epsilon]max}][[3]];
 \[Omega]sercoeff = D[\[Theta]sercoeff,t]/.enrepl;
@@ -252,30 +252,39 @@ MultilineFunction->None]\)[2 i1,j1,t]= p[2 i1,j1+k1,t];
 	];
 ];
 
+For[m=0,m<highestcoeff+1,m++,
+	For[n=2,n<\[Epsilon]max-1,n++,
+		p[2 m,n,t_] = a[2m,n-2,t];
+	];
+];
+
 DumpSave["ini.mx",{LogPrint,logfilename,\[Theta],\[Delta]\[Theta],\[CapitalPhi],\[Epsilon]max,highestcoeff,formthreshhold,formprintbool,formcmd,PD,newnot,oddphi0repl,ContainsPlusQ,EXP,ExpandFORM,TransToFORM,LISTTransToFORM,EXPList,formcmd,formcmdlist,BetterD}]; (*Dumping basic definitions for later usage.*)
 
 (*Sin treatment*)
 
-LogPrint["Acquiring sin(theta) expansion.","PRG:INIT"];
 sinexplist = Table[sinexpfunc[ee],{ee,0,\[Epsilon]max-1}]; (*Need only up to \[Epsilon]max-1, since one \[Epsilon] already on lhs.*)
 sinexp[\[Epsilon]ord_] := If[\[Epsilon]ord<0,0,sinexplist[[\[Epsilon]ord+1]]];
 
-(*Declare \[Phi][n\[NotEqual]0,m,t] solutions*)
 
-PD[];LogPrint["Acquiring algebraic solutions up to eps^"<>ToString[\[Epsilon]max]<>".","PROGRESS"];
+(**)
 
+PD[];LogPrint["Finding relevant coefficients.","PRG:COE"];
 acc0[ord_] :=  ExpandFORM[Coefficient[Expand[sinexp[ord-2]- r * 1/(2 I) * (x-1/x)sinexp[ord-1],x],x,0]];
-acc0list = Table[acc0[2 ee+2],{ee,0,highestpowercorr}];
-DumpSave["acclistbef.mx",{acc0list}];
-ClearAll[acc0list];
+For[asd=1,asd<=highestpowercorr+1,asd++,
+	LogPrint["Saving accelerations at eps^"<>ToString[2*asd]<>".","PRG:COE"];
+	acc0bef[asd] = acc0[2 asd];
+];
 
-LogPrint["Finding relevant coefficients.","PRG:ALG"];
+DumpSave["acclistbef.mx",acc0bef];
+
+
+
 For[i=1,i<\[Epsilon]max+1,i++,
 	PD[];
-	LogPrint["Saving coeffs at order eps^"<>ToString[i]<>".","PRG:ALG"];
+	LogPrint["Saving algebraic eqs at eps^"<>ToString[i]<>".","PRG:COE"];
 	exbef[i] = ExpandFORM[sinexp[i-2]- r * 1/(2 I) * (x-x^-1)sinexp[i-1]];
 	For[j=0,j<i,j++,
-		LogPrint["Saving coeffs of e["<>ToString[i-j]<>"].","PRG:ALG"];
+		LogPrint["Saving coeffs of e["<>ToString[i-j]<>"].","PRG:COE"];
 		cf = Coefficient[exbef[i],x,i-j];
 		cefbef[i,j] = ExpandFORM[-1/((i-j)^2)*cf]; 
 		DumpSave["cefbef.mx",cefbef];
@@ -289,10 +298,29 @@ For[i=1,i<\[Epsilon]max+1,i++,
 ClearAll[exbef];
 
 For[i=1,i<\[Epsilon]max+1,i++,
-	PD[];LogPrint["Declaring solutions at eps^"<>ToString[i]<>".","PRG:ALG"];
+	PD[];LogPrint["### SOLVING AT EPS^"<>ToString[i]<>" ###","PROGRESS"];PD[];
+
 	If[i!=1,
+		If[EvenQ[i],
+			For[asdf=i/2,asdf<=highestpowercorr+1,asdf++,
+				LogPrint["Pre-expanding accelerations at eps^"<>ToString[2*asdf]<>".","PRG:ACC"];
+				acc0bef[asdf] = ExpandFORM[acc0bef[asdf]];
+				DumpSave["acc0bef.mx",acc0bef];
+				ClearAll[acc0bef];
+				<<acc0bef.mx;
+			];
+			LogPrint["Declaring phi[0,"<>ToString[i-2]<>"]''[t].","PRG:ACC"];
+			a[i-2,0,t] = ExpandFORM[acc0bef[i/2]];
+			(*For[mm=1,mm<\[Epsilon]max-1-2 (i-2),mm++,
+				LogPrint["Declaring deriv "<>ToString[mm]<>" of phi[0,"<>ToString[i-2]<>"]''[t].","PRG:ACC"];
+				a[i-2,mm,t] = ExpandFORM[BetterD[a[i-2,mm-1,t],t,1]];
+				DumpSave["a.mx",a];
+				ClearAll[a];
+				<<a.mx;
+			];*)
+		];
 		For[ll=i,ll<\[Epsilon]max+1,ll++,
-			LogPrint["Pre-expanding equations at eps^"<>ToString[ll]<>".","PRG:ALG"];
+			LogPrint["Pre-expanding algebraic eqs at eps^"<>ToString[ll]<>".","PRG:ALG"];
 			For[kk=0,kk<i,kk++,		
 				cefbef[ll,kk] = ExpandFORM[cefbef[ll,kk]];
 				DumpSave["cefbef.mx",cefbef];
@@ -319,57 +347,25 @@ For[i=1,i<\[Epsilon]max+1,i++,
 	];
 ];
 ClearAll[exaa,cefbef];
-timeacc = AbsoluteTime[];
-PD[];LogPrint["All phi[n!=0,m,t] declared in "<>ToString[Round[timeacc-timebeg,0.1]]<>"s.","INFORM"];PD[];
-
-(*Effective potential treatment*)
-
-LogPrint["Acquiring acceleration expressions.","PROGRESS"];
-LogPrint["Declaring phi[0,2m]''[t] up to m = "<>ToString[highestcoeff]<>".","PRG:ACC"];
-
-<<acclistbef.mx;
-acc0list = Map[ExpandFORM[#]&,acc0list];
-
-For[m=0,m<highestcoeff+1,m++,
-	For[n=2,n<\[Epsilon]max-1,n++,
-		p[2 m,n,t_] = a[2m,n-2,t];
-	];
-];
-
-For[m=0,m<highestcoeff,m++,
-	LogPrint["Declaring phi[0,"<>ToString[2 m]<>"]''[t].","PRG:ACC"];
-	a[2 m,0,t_] = ExpandFORM[acc0list[[m+1]]];
-	acc0list = Map[Evaluate[ExpandFORM[#]]&,acc0list];
-	DumpSave["a.mx",{a,p,acc0list}];
-	ClearAll[a,p,acc0list];
-	<<a.mx;
-];
-
-PD[];
-LogPrint["Declaring higher derivatives.","PRG:ACC"];
-
-For[nn=0,nn<highestcoeff+1,nn++,
-	For[mm=1,mm<\[Epsilon]max-1-2 nn,mm++,
-		LogPrint["Declaring derivative "<>ToString[mm]<>" of phi[0,"<>ToString[2 nn]<>"][t].","PRG:ACC"];
-		a[2 nn,mm,t] = ExpandFORM[BetterD[a[2 nn,mm-1,t],t,1]];
-		DumpSave["a.mx",{a,p,acc0list}];
-		ClearAll[a,p,acc0list];
-		<<a.mx;
-	];
-];
-
-PD[];LogPrint["Setting phi[0,2m][t] and phi[0,2m]'[t] to zero.","PRG:ACC"];
+DumpSave["acc0end.mx",acc0bef];
+PD[];LogPrint["Setting phi[0,2m][t] and phi[0,2m]'[t] to zero.","PROGRESS"];
 p[n_,0,t] = 0;
 p[n_,1,t] = 0;
-acc0list = Map[ExpandFORM[#]&,acc0list];
-DumpSave["acc0listend.mx",acc0list];
-timeend = AbsoluteTime[];
-PD[];LogPrint["Accelerations acquired up to correction "<>ToString[highestpowercorr]<>" in "<>ToString[Round[timeend-timeacc,0.1]]<>"s.","INFORM"];
+
+For[asdf=1,asdf<=highestpowercorr+1,asdf++,
+		LogPrint["Setting to zero at eps^"<>ToString[2*asdf]<>".","PRG:ZER"];
+		acc0bef[asdf] = ExpandFORM[acc0bef[asdf]];
+		DumpSave["acc0bef.mx",acc0bef];
+		ClearAll[acc0bef];
+		<<acc0bef.mx;
+];
+
 
 LogPrint["Acquiring frequency expressions.","PROGRESS"];
 For[n=0,n<highestcoeff+1,n++,
-	\[Omega][2n] = Collect[-acc0list[[n+1]]/.{y[_]^n_:>I n}/.{y[_]:>I},r,Expand];
+	\[Omega][2n] = Collect[-acc0bef[n+1]/.{y[_]^n_:>I n}/.{y[_]:>I},r,Expand];
 ];
+
 
 reference = -1 + \[Rho]^2/2 + \[Epsilon]^2 (-2 \[Rho]^2 + (25 \[Rho]^4)/
     32) + \[Epsilon]^4 (8 \[Rho]^2 - (273 \[Rho]^4)/32 + (
@@ -410,8 +406,9 @@ reference = -1 + \[Rho]^2/2 + \[Epsilon]^2 (-2 \[Rho]^2 + (25 \[Rho]^4)/
 difmax = Min[2 highestcoeff,16];
 difference = Normal[Series[Sum[\[Epsilon]^(2 n) \[Omega][2n]/.r->\[Rho],{n,0,highestcoeff}]-reference,{\[Epsilon],0,difmax}]];
 
-DumpSave["om.mx",{\[Omega],reference,difmax,difference}];
 
+DumpSave["om.mx",{\[Omega],reference,difmax,difference}];
+timeend = AbsoluteTime[];
 PD[];
 If[ToString[difference]=="0",LogPrint["### RESULTS AGREE WITH KNOWN RESULTS UP TO CORRECTION 8 ###","INFORM"];,LogPrint["### RESULTS ARE INCORRECT UP TO 7TH CORRECTION ###","ERROR"];];
 
