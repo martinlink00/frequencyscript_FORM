@@ -290,7 +290,7 @@ ClearAll[exbef];
 
 For[i=1,i<\[Epsilon]max+1,i++,
 	PD[];LogPrint["Declaring solutions at eps^"<>ToString[i]<>".","PRG:ALG"];
-	(*If[i!=1,
+	If[i!=1,
 		For[ll=i,ll<\[Epsilon]max+1,ll++,
 			LogPrint["Pre-expanding equations at eps^"<>ToString[ll]<>".","PRG:ALG"];
 			For[kk=0,kk<i,kk++,		
@@ -300,7 +300,7 @@ For[i=1,i<\[Epsilon]max+1,i++,
 				<<cefbef.mx;
 			];
 		];	
-	];*)
+	];
 	For[j=0,j<i,j++,
 		LogPrint["Declaring phi["<>ToString[i-j]<>","<>ToString[j]<>"][t].","PRG:ALG"];
 		exaa = ExpandFORM[cefbef[i,j]];
