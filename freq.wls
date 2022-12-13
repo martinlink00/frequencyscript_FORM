@@ -56,7 +56,9 @@ Off[FrontEndObject::notavail];
 
 highestcoeffresp = ReadList["params.txt"][[1]];
 formthreshhold = ReadList["formconf.txt"][[1]];
-formprintbool = ToString[ReadList["formconf.txt"][[2]]];
+blocksize = ReadList["formconf.txt"][[2]];
+formprintbool = ToString[ReadList["formconf.txt"][[3]]];
+
 formcmd = If[formprintbool=="y","tform -w"<>ToString[$ProcessorCount]<>" expandfast","tform -f -w"<>ToString[$ProcessorCount]<>" expandfast"];
 formcmdlist = If[formprintbool=="y","tform -w"<>ToString[$ProcessorCount]<>" expandfastlist","tform -f -w"<>ToString[$ProcessorCount]<>" expandfastlist"];
 (*formcmd = "form -f expandfast";
@@ -137,12 +139,13 @@ EXP[exp_] := Module[{formtime,ttformtime,bc,logfilename},
 	];
 ];
 
-ExpandFORM[exp_] := Module[{sumlist,other,res},
+ExpandFORM[exp_] := Module[{sumlist,explist,res},
 	If[ToString[Head[exp]]=="Plus",
-		sumlist = Partition[List@@exp,UpTo[2000]];
-		If[Length@sumlist!=1,LogPrint["Expanding in "<>ToString[Length@sumlist]<>" blocks.","EXP:DEC"];];
+		explist = SortBy[List@@exp,ByteCount];
+		sumlist = Partition[explist,UpTo[blocksize]];
 		res = 0;
 		For[iii=1,iii<Length@sumlist+1,iii++,
+			If[Length@sumlist!=1,LogPrint["Expanding Block "<>ToString[iii]<>"/"<>ToString[Length@sumlist]<>".","EXP:DEC"];];
 			res += EXPList[sumlist[[iii]]];
 		];
 		Return[res];
@@ -155,7 +158,7 @@ ExpandFORM[exp_] := Module[{sumlist,other,res},
 BetterD[exp_,t_,n_] := Module[{sumlist,derlist},
 	If[ToString[Head[exp]]=="Plus",
 		sumlist = List@@exp;
-		If[Length@sumlist>2000*$ProcessorCount,
+		If[Length@sumlist>blocksize*$ProcessorCount,
 			LogPrint["D decomposed into "<>ToString[Length@sumlist]<>" terms.","DER:DEC"];
 			derlist = Map[D[#,{t,n}]&,sumlist];,
 		derlist = Map[D[#,{t,n}]&,sumlist];];
@@ -178,7 +181,7 @@ Print[ascipic];
 PD[];
 Pause[0.5];
 If[$VersionNumber!=12.1,LogPrint["Version error: Script was developed on and for version 12.1.","ERROR"];Quit[],
-LogPrint["### KAPITZA FREQUENCY SCRIPT ###","RUNNING"];];
+LogPrint["### KAPITZA FREQUENCY SCRIPT ###","RUNNING"];];PD[];
 
 timebeg = AbsoluteTime[];
 
@@ -200,19 +203,22 @@ processorinfo = ToString[$ProcessorCount]<>" processors of type "<>ToString[$Pro
 memoryinfo = ToString[N[DecimalForm[MemoryAvailable[]/10^6]]]<>" MB of memory available for allocation.";
 paraminfo = "Calculating up to non-trivial correction "<>ToString[highestcoeff]<>".";
 forminfo = "Using TFORM ("<>ToString[$ProcessorCount]<>" worker threads) for LC>"<>ToString[formthreshhold]<>" ("<>If[formprintbool=="y","with ","without "]<>"printouts).";
+blockinfo = "Expansions are done in blocks of "<>ToString[blocksize]<>".";
 esttimeinfo = "Estimate resource usage from logfiles by running paramest.wls.";
 exportinfo = "Results are dumpsaved into exports.";
 loginfo = "Log is saved under exports/logs/"<>logfilename<>".";
-LogPrint["### SYSTEM INFORMATION ###","RUNNING"];
-LogPrint[userinfo,"RUN:SYS"];LogPrint[versioninfo,"RUN:SYS"];LogPrint[processorinfo,"RUN:SYS"];LogPrint[memoryinfo,"RUN:SYS"];PD[];
-LogPrint["### RUN INFORMATION ###","RUNNING"];LogPrint[paraminfo,"RUN:PRM"];LogPrint[forminfo,"RUN:PRM"];LogPrint[esttimeinfo,"INFORM"];LogPrint[loginfo,"INFORM"];LogPrint[exportinfo,"INFORM"];PD[];
-LogPrint["### NOW RUNNING SCRIPT ###","RUNNING"];PD[];
+LogPrint["### SYSTEM INFORMATION ###","RUNNING"];PD[];
+LogPrint[userinfo,"INFORM"];LogPrint[versioninfo,"INFORM"];LogPrint[processorinfo,"INFORM"];LogPrint[memoryinfo,"INFORM"];
+PD[];LogPrint["### RUN INFORMATION ###","RUNNING"];PD[];
+LogPrint[paraminfo,"INFORM"];LogPrint[forminfo,"INFORM"];LogPrint[blockinfo,"INFORM"];
+PD[];LogPrint["### MISC INFORMATION ###","RUNNING"];PD[];
+LogPrint[esttimeinfo,"INFORM"];LogPrint[loginfo,"INFORM"];LogPrint[exportinfo,"INFORM"];
 
 (*-----------------------------------------------------------------------------------------------------*)
 
 (*SCRIPT*)
-
-LogPrint["Initiating.","PROGRESS"];
+PD[];LogPrint["### INIT ###","PROGRESS"];PD[];
+LogPrint["Initiating and preparing.","PRG:INI"];
 \[Epsilon]max = 2 * highestcoeff + 2; (*Max collected \[Epsilon]*)
 highestpowercorr=highestcoeff; (*Highest power correction*)
 e[n_,t]:=Exp[I n t];
@@ -222,7 +228,6 @@ e[n_,t]:=Exp[I n t];
 oddphi0repl =Flatten[Table[D[P[0,2i+1,t],{t,k}]->0,{i,0,highestcoeff+2},{k,0,\[Epsilon]max}]];
 newnot = Flatten[Table[D[P[0,2j,t],{t,k}]->p[2 j,k,t],{j,0,highestcoeff+2},{k,0,\[Epsilon]max}],2];
 enrepl = Table[Exp[I n t]->x^n,{n,-\[Epsilon]max,\[Epsilon]max}];
-
 
 \[Theta]sercoeff = Series[\[Theta]/.oddphi0repl/.newnot,{ep,0,\[Epsilon]max}][[3]];
 \[Omega]sercoeff = D[\[Theta]sercoeff,t]/.enrepl;
@@ -265,10 +270,9 @@ DumpSave["ini.mx",{LogPrint,logfilename,\[Theta],\[Delta]\[Theta],\[CapitalPhi],
 sinexplist = Table[sinexpfunc[ee],{ee,0,\[Epsilon]max-1}]; (*Need only up to \[Epsilon]max-1, since one \[Epsilon] already on lhs.*)
 sinexp[\[Epsilon]ord_] := If[\[Epsilon]ord<0,0,sinexplist[[\[Epsilon]ord+1]]];
 
-
 (**)
 
-PD[];LogPrint["Finding relevant coefficients.","PRG:COE"];
+LogPrint["Finding relevant coefficients.","PRG:COE"];
 acc0[ord_] :=  ExpandFORM[Coefficient[Expand[sinexp[ord-2]- r * 1/(2 I) * (x-1/x)sinexp[ord-1],x],x,0]];
 For[asd=1,asd<=highestpowercorr+1,asd++,
 	LogPrint["Saving accelerations at eps^"<>ToString[2*asd]<>".","PRG:COE"];
@@ -276,26 +280,24 @@ For[asd=1,asd<=highestpowercorr+1,asd++,
 ];
 
 DumpSave["acclistbef.mx",acc0bef];
-
-
+ClearAll[acc0bef];
+<<acclistbef.mx;
 
 For[i=1,i<\[Epsilon]max+1,i++,
-	PD[];
 	LogPrint["Saving algebraic eqs at eps^"<>ToString[i]<>".","PRG:COE"];
 	exbef[i] = ExpandFORM[sinexp[i-2]- r * 1/(2 I) * (x-x^-1)sinexp[i-1]];
 	For[j=0,j<i,j++,
 		LogPrint["Saving coeffs of e["<>ToString[i-j]<>"].","PRG:COE"];
 		cf = Coefficient[exbef[i],x,i-j];
 		cefbef[i,j] = ExpandFORM[-1/((i-j)^2)*cf]; 
-		DumpSave["cefbef.mx",cefbef];
-		ClearAll[cefbef];
-		<<cefbef.mx;
 	];
-	DumpSave["exbef.mx",exbef];
+	(*DumpSave["exbef.mx",exbef];
 	ClearAll[exbef];
-	<<exbef.mx;
+	<<exbef.mx;*)
 ];
-ClearAll[exbef];
+DumpSave["cefbef.mx",cefbef];
+ClearAll[cefbef,exbef];
+<<cefbef.mx;
 
 For[i=1,i<\[Epsilon]max+1,i++,
 	PD[];LogPrint["### SOLVING AT EPS^"<>ToString[i]<>" ###","PROGRESS"];PD[];
@@ -305,9 +307,9 @@ For[i=1,i<\[Epsilon]max+1,i++,
 			For[asdf=i/2,asdf<=highestpowercorr+1,asdf++,
 				LogPrint["Pre-expanding accelerations at eps^"<>ToString[2*asdf]<>".","PRG:ACC"];
 				acc0bef[asdf] = ExpandFORM[acc0bef[asdf]];
-				DumpSave["acc0bef.mx",acc0bef];
+				(*DumpSave["acc0bef.mx",acc0bef];
 				ClearAll[acc0bef];
-				<<acc0bef.mx;
+				<<acc0bef.mx;*)
 			];
 			LogPrint["Declaring phi[0,"<>ToString[i-2]<>"]''[t].","PRG:ACC"];
 			a[i-2,0,t] = ExpandFORM[acc0bef[i/2]];
@@ -321,11 +323,12 @@ For[i=1,i<\[Epsilon]max+1,i++,
 		];
 		For[ll=i,ll<\[Epsilon]max+1,ll++,
 			LogPrint["Pre-expanding algebraic eqs at eps^"<>ToString[ll]<>".","PRG:ALG"];
-			For[kk=0,kk<i,kk++,		
+			For[kk=0,kk<ll,kk++,
+				LogPrint["Pre-expanding coeff e["<>ToString[ll-kk]<>"].","PRG:ALG"];		
 				cefbef[ll,kk] = ExpandFORM[cefbef[ll,kk]];
-				DumpSave["cefbef.mx",cefbef];
+				(*DumpSave["cefbef.mx",cefbef];
 				ClearAll[cefbef];
-				<<cefbef.mx;
+				<<cefbef.mx;*)
 			];
 		];	
 	];
@@ -341,31 +344,30 @@ For[i=1,i<\[Epsilon]max+1,i++,
 			P[i-j,j,t_] = ExpandFORM[exaa + deraa + sdera];
 			];
 		];
-		DumpSave["phi.mx",P];
+		(*DumpSave["phi.mx",P];
 		Clear[P];
-		<<phi.mx;
+		<<phi.mx;*)
 	];
 ];
-ClearAll[exaa,cefbef];
+DumpSave["phi.mx",P];
+ClearAll[exaa,cefbef,P];
 DumpSave["acc0end.mx",acc0bef];
-PD[];LogPrint["Setting phi[0,2m][t] and phi[0,2m]'[t] to zero.","PROGRESS"];
+PD[];LogPrint["### EVALUATING ZERO ENERGY LIMIT ###","PROGRESS"];PD[];
 p[n_,0,t] = 0;
 p[n_,1,t] = 0;
 
 For[asdf=1,asdf<=highestpowercorr+1,asdf++,
-		LogPrint["Setting to zero at eps^"<>ToString[2*asdf]<>".","PRG:ZER"];
+		LogPrint["Setting phi=0 at eps^"<>ToString[2*asdf]<>".","PRG:ZER"];
 		acc0bef[asdf] = ExpandFORM[acc0bef[asdf]];
-		DumpSave["acc0bef.mx",acc0bef];
+		(*DumpSave["acc0bef.mx",acc0bef];
 		ClearAll[acc0bef];
-		<<acc0bef.mx;
+		<<acc0bef.mx;*)
 ];
 
-
-LogPrint["Acquiring frequency expressions.","PROGRESS"];
+PD[];LogPrint["### ACQUIRING FREQUENCIES ###","PROGRESS"];
 For[n=0,n<highestcoeff+1,n++,
 	\[Omega][2n] = Collect[-acc0bef[n+1]/.{y[_]^n_:>I n}/.{y[_]:>I},r,Expand];
 ];
-
 
 reference = -1 + \[Rho]^2/2 + \[Epsilon]^2 (-2 \[Rho]^2 + (25 \[Rho]^4)/
     32) + \[Epsilon]^4 (8 \[Rho]^2 - (273 \[Rho]^4)/32 + (
@@ -406,15 +408,12 @@ reference = -1 + \[Rho]^2/2 + \[Epsilon]^2 (-2 \[Rho]^2 + (25 \[Rho]^4)/
 difmax = Min[2 highestcoeff,16];
 difference = Normal[Series[Sum[\[Epsilon]^(2 n) \[Omega][2n]/.r->\[Rho],{n,0,highestcoeff}]-reference,{\[Epsilon],0,difmax}]];
 
-
 DumpSave["om.mx",{\[Omega],reference,difmax,difference}];
 timeend = AbsoluteTime[];
 PD[];
-If[ToString[difference]=="0",LogPrint["### RESULTS AGREE WITH KNOWN RESULTS UP TO CORRECTION 8 ###","INFORM"];,LogPrint["### RESULTS ARE INCORRECT UP TO 7TH CORRECTION ###","ERROR"];];
-
-(*CLEANUP*)
-
-PD[];LogPrint["Script run completed. It took "<>ToString[Round[timeend-timebeg,0.1]]<>"s.","INFORM"];
+LogPrint["### SCRIPT RUN AT CORRECTION "<>ToString[highestcoeff]<>" COMPLETED IN "<>ToString[Round[timeend-timebeg,0.1]]<>"s ###","INFORM"];
+PD[];
+If[ToString[difference]=="0",LogPrint["### RESULTS AGREE WITH KNOWN RESULTS ###","INFORM"];,LogPrint["### RESULTS ARE INCORRECT ###","ERROR"];];
 PD[];
 LogPrint["### FREQUENCY CALCULATION DONE ###","RUNNING"];
 PD[];
