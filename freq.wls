@@ -265,7 +265,7 @@ For[m=0,m<highestcoeff+1,m++,
 	];
 ];
 
-DumpSave["ini.mx",{LogPrint,logfilename,\[Theta],\[Delta]\[Theta],\[CapitalPhi],\[Epsilon]max,highestcoeff,formthreshhold,formprintbool,formcmd,PD,newnot,oddphi0repl,ContainsPlusQ,EXP,ExpandFORM,TransToFORM,LISTTransToFORM,EXPList,formcmd,formcmdlist,BetterD}]; (*Dumping basic definitions for later usage.*)
+
 
 (*Sin treatment*)
 
@@ -274,8 +274,10 @@ sinexp[\[Epsilon]ord_] := If[\[Epsilon]ord<0,0,sinexplist[[\[Epsilon]ord+1]]];
 
 (**)
 
+DumpSave["ini.mx",{LogPrint,logfilename,\[Theta],\[Delta]\[Theta],\[CapitalPhi],\[Epsilon]max,highestcoeff,formthreshhold,formprintbool,formcmd,PD,newnot,oddphi0repl,ContainsPlusQ,EXP,ExpandFORM,TransToFORM,LISTTransToFORM,EXPList,formcmd,formcmdlist,BetterD,sinexplist}]; (*Dumping basic definitions for later usage.*)
+
 LogPrint["Finding relevant coefficients.","PRG:COE"];
-acc0[ord_] :=  ExpandFORM[Coefficient[Expand[sinexp[ord-2]- r * 1/(2 I) * (x-1/x)sinexp[ord-1],x],x,0]];
+acc0[ord_] :=  ExpandFORM[Coefficient[ExpandFORM[sinexp[ord-2]- r * 1/(2 I) * (x-1/x)sinexp[ord-1]],x,0]];
 For[asd=1,asd<=highestpowercorr+1,asd++,
 	LogPrint["Saving accelerations at eps^"<>ToString[2*asd]<>".","PRG:COE"];
 	acc0bef[asd] = acc0[2 asd];
