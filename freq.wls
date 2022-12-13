@@ -146,7 +146,7 @@ ExpandFORM[exp_] := Module[{sumlist,explist,res},
 			sumlist = Partition[explist,UpTo[blocksize]];
 			res = 0;
 			For[iii=1,iii<Length@sumlist+1,iii++,
-				LogPrint["Expanding Block "<>ToString[iii]<>"/"<>ToString[Length@sumlist]<>".","EXP:DEC"];
+				(*LogPrint["Expanding Block "<>ToString[iii]<>"/"<>ToString[Length@sumlist]<>".","EXP:DEC"];*)
 				res += EXPList[sumlist[[iii]]];
 			];
 			Return[res];
@@ -161,7 +161,7 @@ BetterD[exp_,t_,n_] := Module[{sumlist,derlist},
 	If[ToString[Head[exp]]=="Plus",
 		sumlist = List@@exp;
 		If[Length@sumlist>blocksize*$ProcessorCount,
-			LogPrint["D decomposed into "<>ToString[Length@sumlist]<>" terms.","DER:DEC"];
+			(*LogPrint["D decomposed into "<>ToString[Length@sumlist]<>" terms.","DER:DEC"];*)
 			derlist = Map[D[#,{t,n}]&,sumlist];,
 		derlist = Map[D[#,{t,n}]&,sumlist];];
 		Return[Plus@@derlist],
@@ -266,7 +266,6 @@ For[m=0,m<highestcoeff+1,m++,
 ];
 
 
-
 (*Sin treatment*)
 
 sinexplist = Table[sinexpfunc[ee],{ee,0,\[Epsilon]max-1}]; (*Need only up to \[Epsilon]max-1, since one \[Epsilon] already on lhs.*)
@@ -291,7 +290,7 @@ For[i=1,i<\[Epsilon]max+1,i++,
 	LogPrint["Saving algebraic eqs at eps^"<>ToString[i]<>".","PRG:COE"];
 	exbef[i] = ExpandFORM[sinexp[i-2]- r * 1/(2 I) * (x-x^-1)sinexp[i-1]];
 	For[j=0,j<i,j++,
-		LogPrint["Saving coeffs of e["<>ToString[i-j]<>"].","PRG:COE"];
+		(*LogPrint["Saving coeffs of e["<>ToString[i-j]<>"].","PRG:COE"];*)
 		cf = Coefficient[exbef[i],x,i-j];
 		cefbef[i,j] = ExpandFORM[-1/((i-j)^2)*cf]; 
 	];
@@ -327,7 +326,7 @@ For[i=1,i<\[Epsilon]max+1,i++,
 		For[ll=i,ll<\[Epsilon]max+1,ll++,
 			LogPrint["Pre-expanding algebraic eqs at eps^"<>ToString[ll]<>".","PRG:ALG"];
 			For[kk=0,kk<ll,kk++,
-				LogPrint["Pre-expanding coeff e["<>ToString[ll-kk]<>"].","PRG:ALG"];		
+				(*LogPrint["Pre-expanding coeff e["<>ToString[ll-kk]<>"].","PRG:ALG"];*)		
 				cefbef[ll,kk] = ExpandFORM[cefbef[ll,kk]];
 				(*DumpSave["cefbef.mx",cefbef];
 				ClearAll[cefbef];
