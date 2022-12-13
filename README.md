@@ -4,8 +4,8 @@ The scripts in this directory use the method of modulated Fourier expansion to c
   - Input the highest non-trivial correction you wish to calculate into the params.txt file
   - Configure FORM usage in formconf.txt:
     - The first line is the leafcount threshhold for FORM usage
-    - The second line is the size of blocks, which are to be expanded together
-    - The third line is either "n" or "y", indicating whether or not FORM produces printouts
+    - The second line is the size of blocks, which are to be expanded together (either in FORM or MMA, depending on the threshhold)
+    - The third line is either "n" or "y", indicating whether or not FORM will copy its logfiles into a dedicated folder /exports/formlogs
   - Run main script by typing "math -script freq.wls" or "math12 -script freq.wls" in the project folder
   - Results as well as logfiles will be saved into a subdirectory exports, which will be automatically created when the program is first run
 # Results
