@@ -57,10 +57,10 @@ Off[FrontEndObject::notavail];
 highestcoeffresp = ReadList["params.txt"][[1]];
 formthreshhold = ReadList["formconf.txt"][[1]];
 blocksize = ReadList["formconf.txt"][[2]];
-formprintbool = ToString[ReadList["formconf.txt"][[3]]];
+formlogbool = ToString[ReadList["formconf.txt"][[3]]];
 
-formcmd = If[formprintbool=="y","tform -w"<>ToString[$ProcessorCount]<>" expandfast","tform -f -w"<>ToString[$ProcessorCount]<>" expandfast"];
-formcmdlist = If[formprintbool=="y","tform -w"<>ToString[$ProcessorCount]<>" expandfastlist","tform -f -w"<>ToString[$ProcessorCount]<>" expandfastlist"];
+formcmd = "tform -f -w"<>ToString[$ProcessorCount]<>" expandfast";
+formcmdlist = "tform -f -w"<>ToString[$ProcessorCount]<>" expandfastlist";
 (*formcmd = "form -f expandfast";
 formcmdlist = "form -f expandfastlist";*)
 
@@ -115,7 +115,7 @@ EXPList[explist_] := Module[{formtime,ttformtime,bc,logfilename},
 	Run[formcmdlist];
 	LogPrint["FORM is done (Ts="<>ToString[Round[ttformtime-formtime,0.1]]<>"s, "<>"Tc="<>ToString[Round[AbsoluteTime[]-formtime,0.1]]<>"s).","EXP:FORM"];
 	logfilename = "EXPList_"<>DateString["ISODateTime"]<>".log";
-	CopyFile["expandfastlist.log",FileNameJoin[{"formlogs",logfilename}]];
+	If[formlogbool=="y",CopyFile["expandfastlist.log",FileNameJoin[{"formlogs",logfilename}]]];
 	Return[ToExpression[StringReplace[Import["expr-expanded-list.m"],{"y"->"y[t]","i_"->"I","L"->"[","R"->",t]","D"->","}]]];
 	];
 ];
@@ -202,7 +202,7 @@ versioninfo = "Running on Mathematica "<>ToString[$VersionNumber]<>".";
 processorinfo = ToString[$ProcessorCount]<>" processors of type "<>ToString[$ProcessorType]<>" available.";
 memoryinfo = ToString[N[DecimalForm[MemoryAvailable[]/10^6]]]<>" MB of memory available for allocation.";
 paraminfo = "Calculating up to non-trivial correction "<>ToString[highestcoeff]<>".";
-forminfo = "Using TFORM ("<>ToString[$ProcessorCount]<>" worker threads) for LC>"<>ToString[formthreshhold]<>" ("<>If[formprintbool=="y","with ","without "]<>"printouts).";
+forminfo = "Using TFORM ("<>ToString[$ProcessorCount]<>" worker threads) for LC>"<>ToString[formthreshhold]<>If[formlogbool=="y"," (logs in /exports/formlogs/).","."];
 blockinfo = "Expansions are done in blocks of "<>ToString[blocksize]<>".";
 esttimeinfo = "Estimate resource usage from logfiles by running paramest.wls.";
 exportinfo = "Results are dumpsaved into exports.";
