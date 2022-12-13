@@ -15,4 +15,4 @@ The scripts in this directory use the method of modulated Fourier expansion to c
 # Estimated time
   - If you wish to use the available logfiles in exports/logs/ to predict upcoming calculations on your setup, you can run paramest.wls
   - Note that this script will only analyse the available logfiles, and will only be of use if the program has run at least once for 2 - 3 different orders
-  - In order to run script for orders 2, 3 and 4, run the bash script run234.bash
+  - In order to run script for orders 2, 3, 4 and 5 run the bash script run2345.bash
