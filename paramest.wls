@@ -1,6 +1,3 @@
-#!/usr/bin/env wolframscript
-(* ::Package:: *)
-
 Off[FrontEndObject::notavail];
 
 SetDirectory["exports"]; SetDirectory["logs"];
@@ -8,7 +5,7 @@ SetDirectory["exports"]; SetDirectory["logs"];
 freqloglist = FileNames["freq_*.log"];
 
 extracttime[file_] := Module[ {found},
-   found = Find[file, "Script run completed. It took"]; Close[file];
+   found = Find[file, "### SCRIPT RUN AT CORRECTION"]; Close[file];
    ToExpression[
     StringCases[found, 
       RegularExpression[
@@ -33,7 +30,6 @@ extractmaxram[file_] := Module[ {filetab,ramtab},
 Print["Found " <> ToString[Length@freqloglist] <> 
    " frequency calculation logfiles to extract data from."];
 Print["Extracting data."];
-
 
 freqdata = {};
 For[i = 1, i <= Length@freqloglist, i++,
@@ -78,7 +74,6 @@ SetDirectory[ParentDirectory[]];
 Export["comptime.pdf", exptimeplot]; Export["ram.pdf", expramplot];
 
 hc = ReadList["params.txt"][[1]];
-
 
 Print["Computation time and RAM usage of all available logfiles has \
 been fitted and plotted into comptime.pdf and ram.pdf."];
