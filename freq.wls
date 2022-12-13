@@ -141,15 +141,17 @@ EXP[exp_] := Module[{formtime,ttformtime,bc,logfilename},
 
 ExpandFORM[exp_] := Module[{sumlist,explist,res},
 	If[ToString[Head[exp]]=="Plus",
-		explist = SortBy[List@@exp,ByteCount];
-		sumlist = Partition[explist,UpTo[blocksize]];
-		res = 0;
-		For[iii=1,iii<Length@sumlist+1,iii++,
-			If[Length@sumlist!=1,LogPrint["Expanding Block "<>ToString[iii]<>"/"<>ToString[Length@sumlist]<>".","EXP:DEC"];];
-			res += EXPList[sumlist[[iii]]];
-		];
-		Return[res];
-		
+		If[Length@exp>blocksize,
+			explist = SortBy[List@@exp,ByteCount];
+			sumlist = Partition[explist,UpTo[blocksize]];
+			res = 0;
+			For[iii=1,iii<Length@sumlist+1,iii++,
+				LogPrint["Expanding Block "<>ToString[iii]<>"/"<>ToString[Length@sumlist]<>".","EXP:DEC"];
+				res += EXPList[sumlist[[iii]]];
+			];
+			Return[res];
+		,
+		Return[EXPList[List@@exp]];];
 	,
 	Return[EXP[exp]];
 	];
@@ -291,9 +293,9 @@ For[i=1,i<\[Epsilon]max+1,i++,
 		cf = Coefficient[exbef[i],x,i-j];
 		cefbef[i,j] = ExpandFORM[-1/((i-j)^2)*cf]; 
 	];
-	(*DumpSave["exbef.mx",exbef];
+	DumpSave["exbef.mx",exbef];
 	ClearAll[exbef];
-	<<exbef.mx;*)
+	<<exbef.mx;
 ];
 DumpSave["cefbef.mx",cefbef];
 ClearAll[cefbef,exbef];
