@@ -328,10 +328,10 @@ For[i=1,i<\[Epsilon]max+1,i++,
 			For[kk=0,kk<ll,kk++,
 				(*LogPrint["Pre-expanding coeff e["<>ToString[ll-kk]<>"].","PRG:ALG"];*)		
 				cefbef[ll,kk] = ExpandFORM[cefbef[ll,kk]];
-				(*DumpSave["cefbef.mx",cefbef];
-				ClearAll[cefbef];
-				<<cefbef.mx;*)
 			];
+			DumpSave["cefbef.mx",cefbef];
+			ClearAll[cefbef];
+			<<cefbef.mx;
 		];	
 	];
 	For[j=0,j<i,j++,
