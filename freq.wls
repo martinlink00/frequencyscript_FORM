@@ -8,8 +8,8 @@ Note, that results are dumpsaved into the subfolder "exports", in order to save 
 
 (*FORM SOURCECODE*)
 
-formcode = "S r,x,y;
-Auto S p,P,a;
+formcode = "S r,x,t;
+Auto CF p,P,a,y;
 On Threads;
 On NoSpacesInNumbers;
 On ThreadStats;
@@ -27,8 +27,8 @@ Format Mathematica;
 
 .end";
 
-formcodelist ="S r,x,y;
-Auto S p,P,a;
+formcodelist ="S r,x,t;
+Auto CF p,P,a,y;
 On Threads;
 On NoSpacesInNumbers;
 On ThreadStats;
@@ -87,7 +87,7 @@ PD[]:=Print["-------------------------------------------------------------------
 
 TransToFORM[exp_]:= Module[{tos,expor,file},
 	tos = ToString[exp,InputForm];
-	expor = "L expr = "<>StringReplace[tos,{"y[t]"->"y","["->"L",", t]"->"R",", "->"D","I"->"i_"}]<>";";
+	expor = "L expr = "<>StringReplace[tos,{"["->"(","]"->")","I"->"i_"}]<>";";
 	file=OpenWrite["expr.frm"];WriteString[file,expor];Close[file];
 ];
 
@@ -95,12 +95,11 @@ LISTTransToFORM[list_]:= Module[{string,file},
 	string = "";
 	For[iiiiiii=1,iiiiiii<=Length@list,iiiiiii++,
 		string = string<>"L ex"<>ToString[iiiiiii]<>" = "
-			<>StringReplace[ToString[list[[iiiiiii]],InputForm],
-			{"y[t]"->"y","["->"L", ", t]"->"R",", "->"D","I"->"i_"}]
-			<>";\n\n";
+			<>ToString[list[[iiiiiii]],InputForm]<>";\n\n";
 	];
 	string = string<>".sort \n";
 	string = If[Length@list==1,string<>"L res = ex1;",string<>"L res = ex1+...+ex"<>ToString[Length@list]<>";"];
+	string = StringReplace[string,{"["->"(","]"->")","I"->"i_"}];
 	file = OpenWrite["exprlist.frm"];WriteString[file,string];Close[file];
 ];
 
@@ -116,7 +115,7 @@ EXPList[explist_] := Module[{formtime,ttformtime,bc,logfilename},
 	LogPrint["FORM is done (Ts="<>ToString[Round[ttformtime-formtime,0.1]]<>"s, "<>"Tc="<>ToString[Round[AbsoluteTime[]-formtime,0.1]]<>"s).","EXP:FORM"];
 	logfilename = "EXPList_"<>DateString["ISODateTime"]<>".log";
 	If[formlogbool=="y",CopyFile["expandfastlist.log",FileNameJoin[{"formlogs",logfilename}]]];
-	Return[ToExpression[StringReplace[Import["expr-expanded-list.m"],{"y"->"y[t]","i_"->"I","L"->"[","R"->",t]","D"->","}]]];
+	Return[ToExpression[StringReplace[Import["expr-expanded-list.m"],{"i_"->"I"}]]];
 	];
 ];
 
@@ -135,7 +134,7 @@ EXP[exp_] := Module[{formtime,ttformtime,bc,logfilename},
 	LogPrint["FORM is done (Ts="<>ToString[Round[ttformtime-formtime,0.1]]<>"s, "<>"Tc="<>ToString[Round[AbsoluteTime[]-formtime,0.1]]<>"s).","EXP:FORM"];
 	logfilename = "EXP"<>DateString["ISODateTime"]<>".log";
 	CopyFile["expandfast.log",FileNameJoin[{"formlogs",logfilename}]];
-	Return[ToExpression[StringReplace[Import["expr-expanded.m"],{"y"->"y[t]","i_"->"I","L"->"[","R"->",t]","D"->","}]]];
+	Return[ToExpression[StringReplace[Import["expr-expanded.m"],{"i_"->"I"}]]];
 	];
 ];
 
@@ -146,7 +145,7 @@ ExpandFORM[exp_] := Module[{sumlist,explist,res},
 			sumlist = Partition[explist,UpTo[blocksize]];
 			res = 0;
 			For[iii=1,iii<Length@sumlist+1,iii++,
-				(*LogPrint["Expanding Block "<>ToString[iii]<>"/"<>ToString[Length@sumlist]<>".","EXP:DEC"];*)
+				LogPrint["Expanding Block "<>ToString[iii]<>"/"<>ToString[Length@sumlist]<>".","EXP:DEC"];
 				res += EXPList[sumlist[[iii]]];
 			];
 			Return[res];
@@ -240,6 +239,7 @@ bellargument = Table[Table[Factorial[i]\[Theta]sercoeff[[i+1]],{i,1,n}],{n,1,\[E
 sinexpfunc[epsord_] := If[epsord<0,0,If[epsord==0,1/(2 I) y[t]-1/(2 I)*1/y[t],1/Factorial[epsord] Sum[Factorial[n]sinser[[n+1]]BellY[epsord,n,bellargument[[epsord-n+1]]],{n,1,epsord}]]];
 
 y'[t] := I p[0,1,t]y[t];
+
 For[j=2,j<\[Epsilon]max+2,j++,\!\(\*SuperscriptBox[\(y\), 
 TagBox[
 RowBox[{"(", "j", ")"}],
@@ -265,9 +265,8 @@ For[m=0,m<highestcoeff+1,m++,
 	];
 ];
 
-
 (*Sin treatment*)
-
+LogPrint["Expanding sin(the).","PRG:INI"];
 sinexplist = Table[sinexpfunc[ee],{ee,0,\[Epsilon]max-1}]; (*Need only up to \[Epsilon]max-1, since one \[Epsilon] already on lhs.*)
 sinexp[\[Epsilon]ord_] := If[\[Epsilon]ord<0,0,sinexplist[[\[Epsilon]ord+1]]];
 
@@ -290,7 +289,7 @@ For[i=1,i<\[Epsilon]max+1,i++,
 	LogPrint["Saving algebraic eqs at eps^"<>ToString[i]<>".","PRG:COE"];
 	exbef[i] = ExpandFORM[sinexp[i-2]- r * 1/(2 I) * (x-x^-1)sinexp[i-1]];
 	For[j=0,j<i,j++,
-		(*LogPrint["Saving coeffs of e["<>ToString[i-j]<>"].","PRG:COE"];*)
+		LogPrint["Saving coeffs of e["<>ToString[i-j]<>"].","PRG:COE"];
 		cf = Coefficient[exbef[i],x,i-j];
 		cefbef[i,j] = ExpandFORM[-1/((i-j)^2)*cf]; 
 	];
